@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function role() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    // users: 본인 문서만 read, role 필드는 본인이 수정 불가(관리자만 설정)
+    match /users/{uid} {
+      allow read: if request.auth.uid == uid || role() in ['manager', 'hr'];
+      allow write: if false; // 콘솔/관리자 스크립트로만 세팅
+    }
+
+    // responses: 신입은 본인 답변의 feedback_text/nudge_text만 read,
+    // scores 필드는 manager/hr만 read 가능 (점수 비공개 원칙)
+    match /responses/{responseId} {
+      allow create: if request.auth.uid == request.resource.data.userId;
+      allow read: if role() in ['manager', 'hr']
+                  || (request.auth.uid == resource.data.userId); 
+                  // 주의: 클라이언트 쿼리에서 scores 필드를 제외하고 select 하거나,
+                  // Cloud Function을 경유해 feedback_text만 내려주는 방식을 권장.
+                  // (Firestore 보안규칙은 필드 단위 제한이 어려우므로 API 레이어에서 이중 필터링)
+      allow update: if role() == 'hr' && request.resource.data.diff(resource.data)
+                      .affectedKeys().hasOnly(['hr_comment']); // 점수는 불변, 코멘트만 추가 가능
+    }
+
+    // manager_feedback: 신입은 절대 read 불가 (평가자 익명성 원칙)
+    match /manager_feedback/{feedbackId} {
+      allow read, write: if role() in ['manager', 'hr'];
+    }
+
+    // missions: 공개 질문 텍스트만 신입도 read, mapped 필드는 애초에
+    // 이 컬렉션에 저장하지 않고 서버(api/missionBank.js)에만 둔다.
+    match /missions/{missionId} {
+      allow read: if request.auth != null;
+      allow write: if role() == 'hr';
+    }
+
+    // reviews: 3/6개월 종합 해석(AI 생성 서사). 본인(신입) + manager/hr가 read 가능.
+    // 생성은 항상 서버(api/comprehensiveReview.js, Admin SDK)만 하므로 client write는 막는다.
+    match /reviews/{reviewId} {
+      allow read: if role() in ['manager', 'hr'] || request.auth.uid == resource.data.uid;
+      allow write: if false;
+    }
+
+    // interviews: 3/6개월 면담 결과. manager_feedback과 같은 원칙으로 신입은 절대 read 불가
+    // (정식 인사 기록이며, 요약된 형태로 공유할지는 별도 프로세스로 결정).
+    match /interviews/{interviewId} {
+      allow read, write: if role() in ['manager', 'hr'];
+    }
+  }
+}
