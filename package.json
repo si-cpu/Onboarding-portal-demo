@@ -1,0 +1,30 @@
+{
+  "name": "onboarding-portal",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:api": "bash -c 'set -a; source .env.local; set +a; vercel dev --yes'",
+    "build": "vite build",
+    "preview": "vite preview",
+    "seed:test-users": "node --env-file=.env.local scripts/seedTestUsers.js",
+    "seed:role-accounts": "node --env-file=.env.local scripts/seedRoleAccounts.js",
+    "seed:missions": "node --env-file=.env.local scripts/seedMissions.js",
+    "gen:dummy-corpus": "node --env-file=.env.local scripts/generateDummyCorpus.js",
+    "loadtest": "node --env-file=.env.local scripts/runLoadTest.js",
+    "qa:scores": "node --env-file=.env.local scripts/qaScores.js"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
+    "firebase": "^10.13.0",
+    "firebase-admin": "^12.4.0",
+    "@anthropic-ai/sdk": "^0.27.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0",
+    "@vitejs/plugin-react": "^4.3.1"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "onboarding-portal-e2c22",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/*.js": { "maxDuration": 30 }
+  }
+}
