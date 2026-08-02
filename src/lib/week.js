@@ -28,7 +28,3 @@ export function getCurrentWeek(joinedAt) {
 
   return Math.min(Math.max(weeksSince + 1, 1), TOTAL_WEEKS);
 }
-
-export function isReviewWeek(week) {
-  return week === MID_REVIEW_WEEK || week === FINAL_REVIEW_WEEK;
-}

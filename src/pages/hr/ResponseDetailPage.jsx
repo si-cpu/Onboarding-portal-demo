@@ -5,6 +5,7 @@ import { db } from "../../lib/firebase";
 import { getCurrentWeek } from "../../lib/week";
 import ScoreSlider from "../../components/ScoreSlider";
 import ReviewPanel from "../../components/ReviewPanel";
+import ObservedComparisonPanel from "../../components/ObservedComparisonPanel";
 
 function avgOfScores(scores) {
   const values = Object.values(scores ?? {});
@@ -12,19 +13,27 @@ function avgOfScores(scores) {
   return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
 }
 
-// 전체 응답의 scores를 가치명 기준으로 평균 내어 낮은 순으로 정렬한다 (면담 때
-// 짚어줄 상대적 약점 후보).
-function computeWeakAreas(responses) {
+// 가치명 기준으로 점수를 평균 낸다. AI 자기서술 채점(responses.scores)과
+// 팀장 관찰(manager_feedback.scores) 양쪽 다 이 함수로 집계해서 같은 방식으로
+// 비교 가능하게 한다.
+function averageByLabel(scoreObjects) {
   const totals = {};
   const counts = {};
-  responses.forEach((r) => {
-    Object.entries(r.scores ?? {}).forEach(([label, score]) => {
+  scoreObjects.forEach((scores) => {
+    Object.entries(scores ?? {}).forEach(([label, score]) => {
       totals[label] = (totals[label] ?? 0) + score;
       counts[label] = (counts[label] ?? 0) + 1;
     });
   });
-  return Object.keys(totals)
-    .map((label) => ({ label, avg: Math.round(totals[label] / counts[label]) }))
+  return Object.fromEntries(Object.keys(totals).map((label) => [label, Math.round(totals[label] / counts[label])]));
+}
+
+// 전체 응답의 scores를 가치명 기준으로 평균 내어 낮은 순으로 정렬한다 (면담 때
+// 짚어줄 상대적 약점 후보).
+function computeWeakAreas(responses) {
+  const byLabel = averageByLabel(responses.map((r) => r.scores));
+  return Object.entries(byLabel)
+    .map(([label, avg]) => ({ label, avg }))
     .sort((a, b) => a.avg - b.avg);
 }
 
@@ -70,6 +79,7 @@ function HrCommentBox({ responseDocId, initialComment }) {
 export default function ResponseDetailPage() {
   const { internId } = useParams();
   const [responses, setResponses] = useState(null);
+  const [managerFeedback, setManagerFeedback] = useState({}); // { mid: scores|null, final: scores|null }
   const [currentWeek, setCurrentWeek] = useState(1);
   const [reviews, setReviews] = useState({}); // { mid: narrative_text, final: narrative_text }
   const [interviews, setInterviews] = useState({}); // { mid: notes, final: notes }
@@ -87,11 +97,16 @@ export default function ResponseDetailPage() {
         setCurrentWeek(getCurrentWeek(joinedAt));
         setResponses(respSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
 
-        const [midReview, finalReview, midInterview, finalInterview] = await Promise.all([
+        // 매니저 관찰은 3개월/6개월 시점에 한 번씩만 남기는 구조라
+        // (MetaFeedbackPage.jsx), 문서 ID가 `{internId}_{mid|final}`로 고정돼
+        // 있어 컬렉션 쿼리 없이 바로 조회한다.
+        const [midReview, finalReview, midInterview, finalInterview, midFeedback, finalFeedback] = await Promise.all([
           getDoc(doc(db, "reviews", `${internId}_mid`)),
           getDoc(doc(db, "reviews", `${internId}_final`)),
           getDoc(doc(db, "interviews", `${internId}_mid`)),
           getDoc(doc(db, "interviews", `${internId}_final`)),
+          getDoc(doc(db, "manager_feedback", `${internId}_mid`)),
+          getDoc(doc(db, "manager_feedback", `${internId}_final`)),
         ]);
         setReviews({
           mid: midReview.exists() ? midReview.data().narrative_text : null,
@@ -100,6 +115,10 @@ export default function ResponseDetailPage() {
         setInterviews({
           mid: midInterview.exists() ? midInterview.data().notes : "",
           final: finalInterview.exists() ? finalInterview.data().notes : "",
+        });
+        setManagerFeedback({
+          mid: midFeedback.exists() ? midFeedback.data().scores : null,
+          final: finalFeedback.exists() ? finalFeedback.data().scores : null,
         });
       } catch (e) {
         setError(e.message);
@@ -127,32 +146,53 @@ export default function ResponseDetailPage() {
   const showMid = currentWeek >= 13;
   const showFinal = currentWeek >= 26;
 
+  // AI(자기서술) 평균을 그 시점 범위로 한정해서 팀장이 그 시점에 남긴 관찰
+  // (MetaFeedbackPage.jsx에서 mid/final 각각 한 번씩)과 짝지어 비교한다 —
+  // 3개월 시점엔 1~12주 AI 평균, 6개월 시점엔 1~25주 AI 평균과 비교하는 식.
+  // KPI "AI 채점-팀장 관찰 간 일치도"가 바로 이 비교에서 나온다.
+  const aiMidAveragesByLabel = averageByLabel(responses.filter((r) => r.missionId <= 12).map((r) => r.scores));
+  const aiFinalAveragesByLabel = averageByLabel(responses.filter((r) => r.missionId <= 25).map((r) => r.scores));
+
   return (
     <div>
       <div className="label">{internId}의 제출 내역 ({currentWeek}주차)</div>
 
       {showMid && (
-        <ReviewPanel
-          reviewType="mid"
-          weakAreas={computeWeakAreas(responses.filter((r) => r.missionId <= 12))}
-          missedWeeks={computeMissedWeeks(responses, 12)}
-          trendPoints={trendPoints.filter((p) => p.week <= 12)}
-          narrativeText={reviews.mid}
-          initialNotes={interviews.mid}
-          onSaveNotes={(notes) => saveInterviewNotes("mid", notes)}
-        />
+        <>
+          <ObservedComparisonPanel
+            title="AI 채점 vs 팀장 관찰 — 3개월 시점"
+            aiAveragesByLabel={aiMidAveragesByLabel}
+            managerScores={managerFeedback.mid}
+          />
+          <ReviewPanel
+            reviewType="mid"
+            weakAreas={computeWeakAreas(responses.filter((r) => r.missionId <= 12))}
+            missedWeeks={computeMissedWeeks(responses, 12)}
+            trendPoints={trendPoints.filter((p) => p.week <= 12)}
+            narrativeText={reviews.mid}
+            initialNotes={interviews.mid}
+            onSaveNotes={(notes) => saveInterviewNotes("mid", notes)}
+          />
+        </>
       )}
 
       {showFinal && (
-        <ReviewPanel
-          reviewType="final"
-          weakAreas={computeWeakAreas(responses.filter((r) => r.missionId <= 25))}
-          missedWeeks={computeMissedWeeks(responses, 25)}
-          trendPoints={trendPoints.filter((p) => p.week <= 25)}
-          narrativeText={reviews.final}
-          initialNotes={interviews.final}
-          onSaveNotes={(notes) => saveInterviewNotes("final", notes)}
-        />
+        <>
+          <ObservedComparisonPanel
+            title="AI 채점 vs 팀장 관찰 — 6개월 시점"
+            aiAveragesByLabel={aiFinalAveragesByLabel}
+            managerScores={managerFeedback.final}
+          />
+          <ReviewPanel
+            reviewType="final"
+            weakAreas={computeWeakAreas(responses.filter((r) => r.missionId <= 25))}
+            missedWeeks={computeMissedWeeks(responses, 25)}
+            trendPoints={trendPoints.filter((p) => p.week <= 25)}
+            narrativeText={reviews.final}
+            initialNotes={interviews.final}
+            onSaveNotes={(notes) => saveInterviewNotes("final", notes)}
+          />
+        </>
       )}
 
       {responses.map((r) => (
