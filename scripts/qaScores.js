@@ -5,9 +5,17 @@
 //
 // api/score.js의 서버 사이드 주차 게이팅(리스크9 패치) 때문에 계정 하나로 26개
 // 미션을 한 번에 채점시킬 수 없다(그 계정의 "이번 주"가 아닌 missionId는 403).
-// 그래서 미션마다 전용 QA 계정(`qa-mission-{missionId}@test.local`)을 두고,
-// joinedAt을 (missionId-1)주 전으로 백데이트해서 "지금이 바로 이 계정의 그 주차"가
-// 되도록 맞춘다 — intern@test.local(수동 데모용 공용 계정)은 건드리지 않는다.
+// 그래서 미션마다 전용 QA 계정을 두고, joinedAt을 (missionId-1)주 전으로 백데이트해서
+// "지금이 바로 이 계정의 그 주차"가 되도록 맞춘다 — intern@test.local(수동 데모용
+// 공용 계정)은 건드리지 않는다.
+//
+// ⚠️ 계정은 missionId뿐 아니라 quality(high/medium/low/evasive)별로도 분리해야 한다
+// (`qa-mission-{missionId}-{quality}@test.local`). score.js는 "같은 계정 + 같은
+// missionId 재제출"을 409로 막는데(리스크9 패치의 일부), 계정을 missionId로만
+// 나누면 같은 계정으로 high/medium/low를 연달아 제출하다가 두 번째 제출부터
+// 전부 409로 막힌다 — salt는 answerHash 캐시만 우회할 뿐 이 재제출 가드는
+// 못 피한다. 계정을 missionId×quality로 나눠 각 계정이 딱 1회만 제출하게
+// 하면 이 충돌이 사라진다.
 //
 // 사전 준비:
 //   1. npm run gen:dummy-corpus (dummyCorpus.json이 아직 없으면)
@@ -27,8 +35,8 @@ const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
 const QA_PASSWORD = "QaScore1234!";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-function qaEmailFor(missionId) {
-  return `qa-mission-${missionId}@test.local`;
+function qaEmailFor(missionId, quality) {
+  return `qa-mission-${missionId}-${quality}@test.local`;
 }
 
 function firebaseConfigFromEnv() {
@@ -48,10 +56,10 @@ function firebaseConfigFromEnv() {
   };
 }
 
-// missionId 전용 QA 계정을 만들고(없으면 생성), joinedAt을 이 실행 시점 기준으로
-// (missionId-1)주 전으로 맞춘 뒤 uid를 반환한다.
-async function ensureQaAccount(adminAuth, adminDb, missionId) {
-  const email = qaEmailFor(missionId);
+// missionId×quality 전용 QA 계정을 만들고(없으면 생성), joinedAt을 이 실행 시점
+// 기준으로 (missionId-1)주 전으로 맞춘 뒤 uid를 반환한다.
+async function ensureQaAccount(adminAuth, adminDb, missionId, quality) {
+  const email = qaEmailFor(missionId, quality);
   let user;
   try {
     user = await adminAuth.getUserByEmail(email);
@@ -83,11 +91,11 @@ async function main() {
     const mission = MISSION_BANK.find((m) => m.id === missionId);
     if (!mission) continue;
 
-    const uid = await ensureQaAccount(adminAuth, adminDb, missionId);
-    const cred = await signInWithEmailAndPassword(clientAuth, qaEmailFor(missionId), QA_PASSWORD);
-    const idToken = await cred.user.getIdToken();
-
     for (const variant of variants) {
+      const uid = await ensureQaAccount(adminAuth, adminDb, missionId, variant.quality);
+      const cred = await signInWithEmailAndPassword(clientAuth, qaEmailFor(missionId, variant.quality), QA_PASSWORD);
+      const idToken = await cred.user.getIdToken();
+
       const answerText = `${variant.answerText} (qa-${salt})`;
       process.stdout.write(`미션 #${missionId} [${variant.quality}] 채점 중...\n`);
 
