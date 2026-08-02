@@ -49,8 +49,10 @@ export async function generateNudgeText({ uid, currentScores, question, requestI
 - 가치명("${weakest}")을 문장에 절대 직접 언급하지 말 것
 - 점수나 순위를 언급하지 말 것
 - 신입이 다음에 시도해볼 수 있는 구체적 행동 제안으로 1문장만 작성할 것
+- 딱딱한 평가 보고서 톤이 아니라, 옆자리 동료가 편하게 건네는 말투로 쓸 것
+- 다른 설명·따옴표·JSON 없이 문장 하나만 출력할 것
 
-다음 JSON 형식으로만 응답하라: { "nudge_text": "..." }`;
+문장 하나만 그대로 출력하라 (앞뒤에 아무것도 붙이지 말 것).`;
 
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
@@ -59,12 +61,13 @@ export async function generateNudgeText({ uid, currentScores, question, requestI
     messages: [{ role: "user", content: prompt }],
   });
 
-  const raw = response.content.find((b) => b.type === "text")?.text ?? "{}";
-  try {
-    const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
-    return parsed.nudge_text ?? null;
-  } catch {
-    alert(requestId, "nudge.parse_failed", { uid, raw: raw.slice(0, 200) });
+  // comprehensiveReview.js에서 실제로 겪은 것과 같은 이유로 JSON 래핑을 없앴다 —
+  // 문장 하나짜리 응답을 JSON으로 감싸면 인용부호 등에 파싱이 깨질 위험만 있고
+  // 얻는 게 없다.
+  const nudgeText = response.content.find((b) => b.type === "text")?.text?.trim();
+  if (!nudgeText) {
+    alert(requestId, "nudge.empty_response", { uid });
     return null;
   }
+  return nudgeText;
 }

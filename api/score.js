@@ -148,12 +148,17 @@ ${rubric}
 질문: ${mission.question}
 답변: ${answerText}
 
+feedback_text 작성 규칙:
+- 옆자리 동료가 진심으로 건네는 코멘트처럼 편안하고 자연스러운 구어체로 쓸 것 — 딱딱한 평가 보고서 톤 금지
+- "~점이 인상적입니다", "~한 점이 돋보입니다" 같은 정형화된 문장 틀을 매번 반복하지 말고, 이번 답변 내용에 맞게 표현을 매번 다르게 바꿀 것
+- 점수나 가치명은 절대 언급하지 말 것
+
 다음 JSON 형식으로만 응답하라 (다른 텍스트 없이):
 {
   "scores": { "${mission.mapped.primary}": 0-100, ${mission.mapped.secondary
       .map((v) => `"${v}": 0-100`)
       .join(", ")} },
-  "feedback_text": "신입 본인에게 보여줄 정성 피드백 2~3문장. 점수나 가치명은 절대 언급하지 말 것.",
+  "feedback_text": "위 feedback_text 작성 규칙을 따른 정성 피드백 2~3문장",
   "evidence_density": "high" | "medium" | "low"
 }
 `;
