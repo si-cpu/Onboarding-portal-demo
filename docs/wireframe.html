@@ -1,0 +1,841 @@
+<title>온보딩 포털 — 역할별 화면 와이어프레임</title>
+<style>
+  @font-face {
+    font-family: "WF Mono";
+    src: local("SF Mono"), local("Menlo"), local("Consolas");
+  }
+
+  :root {
+    --bg: #efe6d3;
+    --surface: #faf5e9;
+    --surface-2: #f2ead9;
+    --ink: #2a2318;
+    --ink-dim: #6f6551;
+    --ink-faint: #a89d84;
+    --line: #cec19d;
+    --line-soft: #ddd2b4;
+    --accent-intern: #2f6f5e;
+    --accent-intern-soft: #dfe9e2;
+    --accent-manager: #7a3b56;
+    --accent-manager-soft: #ecdfe4;
+    --accent-hr: #2b3f6b;
+    --accent-hr-soft: #dfe3ec;
+    --danger: #a6432b;
+    --danger-soft: #f1ded7;
+    --shadow: 0 1px 0 rgba(42, 35, 24, 0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a170f;
+      --surface: #221e14;
+      --surface-2: #2a2417;
+      --ink: #ece3cd;
+      --ink-dim: #a89b7d;
+      --ink-faint: #6e6450;
+      --line: #46402c;
+      --line-soft: #363120;
+      --accent-intern: #5cb79c;
+      --accent-intern-soft: #223129;
+      --accent-manager: #d488a4;
+      --accent-manager-soft: #33232a;
+      --accent-hr: #8ea3d6;
+      --accent-hr-soft: #212a3d;
+      --danger: #e28a68;
+      --danger-soft: #3a2620;
+      --shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1a170f; --surface: #221e14; --surface-2: #2a2417;
+    --ink: #ece3cd; --ink-dim: #a89b7d; --ink-faint: #6e6450;
+    --line: #46402c; --line-soft: #363120;
+    --accent-intern: #5cb79c; --accent-intern-soft: #223129;
+    --accent-manager: #d488a4; --accent-manager-soft: #33232a;
+    --accent-hr: #8ea3d6; --accent-hr-soft: #212a3d;
+    --danger: #e28a68; --danger-soft: #3a2620;
+    --shadow: 0 1px 0 rgba(0,0,0,.3);
+  }
+  :root[data-theme="light"] {
+    --bg: #efe6d3; --surface: #faf5e9; --surface-2: #f2ead9;
+    --ink: #2a2318; --ink-dim: #6f6551; --ink-faint: #a89d84;
+    --line: #cec19d; --line-soft: #ddd2b4;
+    --accent-intern: #2f6f5e; --accent-intern-soft: #dfe9e2;
+    --accent-manager: #7a3b56; --accent-manager-soft: #ecdfe4;
+    --accent-hr: #2b3f6b; --accent-hr-soft: #dfe3ec;
+    --danger: #a6432b; --danger-soft: #f1ded7;
+    --shadow: 0 1px 0 rgba(42,35,24,.06);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Pretendard, "Apple SD Gothic Neo", sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono {
+    font-family: "WF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  /* ---------- shell ---------- */
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 28px 100px; }
+
+  header.doc-head { margin-bottom: 28px; }
+  .eyebrow {
+    font-family: "WF Mono", ui-monospace, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-family: Georgia, "Iowan Old Style", "Noto Serif KR", serif;
+    font-size: clamp(26px, 3.4vw, 34px);
+    font-weight: 600;
+    margin: 0 0 8px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .doc-sub {
+    color: var(--ink-dim);
+    font-size: 14.5px;
+    max-width: 640px;
+  }
+
+  /* principles strip */
+  .principles {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--line-soft);
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 22px 0 30px;
+  }
+  .principle {
+    background: var(--surface);
+    padding: 13px 14px;
+  }
+  .principle .k {
+    font-family: "WF Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: var(--accent-hr);
+    margin-bottom: 5px;
+  }
+  .principle .v { font-size: 12.5px; color: var(--ink-dim); }
+
+  /* legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    font-size: 12px;
+    color: var(--ink-dim);
+    align-items: center;
+    padding: 10px 0 22px;
+    border-bottom: 1px solid var(--line-soft);
+    margin-bottom: 30px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 7px; }
+  .swatch-line { width: 22px; height: 0; border-top: 1.6px solid var(--ink-dim); }
+  .swatch-line.dashed { border-top-style: dashed; }
+  .chip-demo {
+    font-family: "WF Mono", ui-monospace, monospace;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+  }
+
+  /* role nav */
+  .role-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    gap: 2px;
+    background: var(--bg);
+    padding: 12px 0 16px;
+    margin-bottom: 8px;
+  }
+  .role-nav a {
+    flex: 1;
+    text-decoration: none;
+    text-align: center;
+    padding: 12px 10px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    background: var(--surface);
+    transition: transform .12s ease;
+  }
+  .role-nav a:hover { transform: translateY(-1px); }
+  .role-nav a[data-role="intern"] { border-color: var(--accent-intern); }
+  .role-nav a[data-role="manager"] { border-color: var(--accent-manager); }
+  .role-nav a[data-role="hr"] { border-color: var(--accent-hr); }
+
+  /* ---------- role section ---------- */
+  section.role {
+    scroll-margin-top: 90px;
+    border-left: 4px solid var(--rail);
+    padding: 8px 0 8px 22px;
+    margin: 46px 0 0;
+  }
+  section.role[data-role="intern"] { --rail: var(--accent-intern); }
+  section.role[data-role="manager"] { --rail: var(--accent-manager); }
+  section.role[data-role="hr"] { --rail: var(--accent-hr); }
+
+  .role-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+  .role-head h2 {
+    font-family: Georgia, "Iowan Old Style", "Noto Serif KR", serif;
+    font-size: 22px;
+    margin: 0;
+    color: var(--rail);
+  }
+  .role-tag {
+    font-family: "WF Mono", ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+  .role-nav-mini {
+    display: flex;
+    gap: 6px;
+    margin: 4px 0 22px;
+  }
+  .role-nav-mini span {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--rail);
+    color: var(--surface);
+    opacity: 0.88;
+  }
+
+  .screen-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 34px;
+  }
+  .screen-grid.wide { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
+  .screen-grid.full { grid-template-columns: 1fr; }
+
+  .screen-block {
+    background: var(--surface-2);
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .screen-block .block-label {
+    font-family: "WF Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+    color: var(--ink-faint);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* the "screen" itself: schematic nav + content */
+  .screen {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .screen-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 10.5px;
+  }
+  .screen-nav .navtab {
+    font-family: "WF Mono", ui-monospace, monospace;
+    padding: 3px 7px;
+    border-radius: 4px;
+    color: var(--ink-faint);
+  }
+  .screen-nav .navtab.active { background: var(--rail); color: var(--surface); }
+  .screen-nav .navlogo {
+    margin-left: auto;
+    font-family: Georgia, serif;
+    font-weight: 700;
+    font-size: 10px;
+    color: var(--ink-faint);
+    border: 1px solid var(--line);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  .screen-body { padding: 14px; font-size: 12.5px; }
+  .screen-body .h { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+  .screen-body .muted { color: var(--ink-dim); font-size: 11.5px; }
+
+  .card {
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 8px;
+  }
+  .card:last-child { margin-bottom: 0; }
+  .card .label {
+    font-size: 10px;
+    font-family: "WF Mono", ui-monospace, monospace;
+    color: var(--rail, var(--ink-faint));
+    margin-bottom: 5px;
+  }
+  .quote {
+    font-size: 12px;
+    color: var(--ink);
+    line-height: 1.55;
+  }
+
+  .btn {
+    display: inline-block;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 5px;
+    background: var(--rail);
+    color: var(--surface);
+    border: none;
+  }
+  .btn.secondary {
+    background: transparent;
+    color: var(--ink-dim);
+    border: 1px solid var(--line);
+  }
+  .field {
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 7px 9px;
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    background: var(--surface);
+    margin-bottom: 6px;
+  }
+  .row-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .state-chip {
+    font-family: "WF Mono", ui-monospace, monospace;
+    font-size: 9.5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .state-chip.default { background: var(--surface); border: 1px solid var(--line); color: var(--ink-dim); }
+  .state-chip.locked { background: var(--danger-soft); color: var(--danger); }
+  .state-chip.success { background: var(--accent-intern-soft); color: var(--accent-intern); }
+
+  .locked-box {
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--ink-dim);
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+  }
+
+  .success-line {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--accent-intern);
+    margin-bottom: 6px;
+  }
+
+  .week-pills {
+    display: flex;
+    gap: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .week-pills span {
+    font-family: "WF Mono", ui-monospace, monospace;
+    font-size: 9.5px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    color: var(--ink-faint);
+    flex-shrink: 0;
+  }
+  .week-pills span.active { background: var(--rail); border-color: var(--rail); color: var(--surface); }
+
+  /* dialog overlay mock */
+  .dialog-mock {
+    position: relative;
+    padding: 18px 10px;
+  }
+  .dialog-mock .backdrop {
+    background: repeating-linear-gradient(135deg, var(--surface-2), var(--surface-2) 4px, var(--surface) 4px, var(--surface) 8px);
+    border-radius: 6px;
+    padding: 20px 12px;
+  }
+  .dialog-box {
+    background: var(--surface);
+    border: 1px solid var(--rail);
+    border-radius: 8px;
+    padding: 12px;
+    max-width: 220px;
+    margin: 0 auto;
+    box-shadow: 0 4px 14px rgba(0,0,0,.12);
+  }
+  .dialog-box .h { font-size: 12px; margin-bottom: 4px; }
+  .dialog-box .q { font-size: 11px; color: var(--ink-dim); margin-bottom: 10px; }
+  .dialog-actions { display: flex; gap: 6px; }
+
+  /* slider row for value sliders */
+  .slider-row { margin-bottom: 9px; }
+  .slider-row:last-child { margin-bottom: 0; }
+  .slider-row .sr-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: var(--ink-dim);
+    margin-bottom: 3px;
+  }
+  .slider-track {
+    height: 5px;
+    border-radius: 3px;
+    background: var(--line-soft);
+    overflow: hidden;
+  }
+  .slider-fill { height: 100%; background: var(--rail); }
+
+  .compare-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .compare-row:last-child { border-bottom: none; }
+  .flag { color: var(--danger); font-weight: 700; margin-left: 6px; }
+
+  .sparkline {
+    height: 34px;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    margin: 6px 0;
+  }
+  .sparkline i {
+    display: block;
+    width: 5px;
+    background: var(--rail);
+    border-radius: 1px 1px 0 0;
+    opacity: .8;
+  }
+
+  .value-tag-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 10px;
+    font-size: 10.5px;
+    color: var(--ink-dim);
+    margin-bottom: 8px;
+  }
+
+  footer.doc-foot {
+    margin-top: 60px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line-soft);
+    font-size: 11.5px;
+    color: var(--ink-faint);
+  }
+
+  @media (max-width: 720px) {
+    .principles { grid-template-columns: repeat(2, 1fr); }
+    .role-nav { flex-wrap: wrap; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="doc-head">
+    <div class="eyebrow">InterX AX 채용 오디션 · Onboarding Portal</div>
+    <h1>온보딩 포털 — 역할별 화면 구성</h1>
+    <p class="doc-sub">
+      신입 / 팀장(매니저) / HR, 세 역할이 각각 무엇을 입력하고 무엇을 볼 수 있는지를 기준으로 전체 화면을 정리했습니다.
+      실제 앱을 다시 구동해 현재 동작을 확인한 뒤 그린 스키매틱이며, 문구는 실제 화면 카피를 그대로 옮겼습니다.
+    </p>
+
+    <div class="principles">
+      <div class="principle">
+        <div class="k">점수 비공개 원칙</div>
+        <div class="v">신입은 숫자 점수·가치명을 절대 볼 수 없음 — API가 해당 필드를 아예 내려주지 않음</div>
+      </div>
+      <div class="principle">
+        <div class="k">평가자 익명성</div>
+        <div class="v">팀장의 관찰 기록은 신입 열람 불가 — 규칙과 라우터에서 이중으로 차단</div>
+      </div>
+      <div class="principle">
+        <div class="k">주차 게이팅</div>
+        <div class="v">입사일 기준 실제 캘린더 주차를 서버가 직접 검증 — 클라이언트 조작으로 우회 불가</div>
+      </div>
+      <div class="principle">
+        <div class="k">이중 측정 구조</div>
+        <div class="v">신입 자기서술(AI 채점) vs 팀장 관찰, 3·6개월 시점마다 HR이 나란히 비교</div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="swatch-line"></span> 기본 화면 요소</div>
+      <div class="legend-item"><span class="swatch-line dashed"></span> 조건부로만 나타나는 블록</div>
+      <div class="legend-item"><span class="chip-demo">라벨</span> 실제 코드상 문구·필드명</div>
+      <div class="legend-item">색 레일 = 역할 (좌측 테두리 색으로 구분)</div>
+    </div>
+
+    <nav class="role-nav">
+      <a href="#intern" data-role="intern">🟢 신입이 보는 것</a>
+      <a href="#manager" data-role="manager">🟣 팀장이 보는 것</a>
+      <a href="#hr" data-role="hr">🔵 HR이 보는 것</a>
+    </nav>
+  </header>
+
+  <!-- ============ INTERN ============ -->
+  <section class="role" id="intern" data-role="intern">
+    <div class="role-head">
+      <h2>신입이 보는 것</h2>
+      <span class="role-tag mono">role: intern · 5 screens · 점수는 어디에도 노출되지 않음</span>
+    </div>
+    <div class="role-nav-mini">
+      <span>신입 뷰</span><span>피드백 히스토리</span><span>내 타임라인</span>
+    </div>
+
+    <div class="screen-grid">
+      <!-- 로그인 -->
+      <div class="screen-block">
+        <div class="block-label"><span>01 · 로그인</span><span class="state-chip default">공통 진입점</span></div>
+        <div class="screen">
+          <div class="screen-body" style="display:flex; align-items:center; justify-content:center; min-height:150px;">
+            <div class="card" style="width:100%; max-width:200px;">
+              <div class="label">온보딩 포털 로그인</div>
+              <div class="field">이메일</div>
+              <div class="field">비밀번호</div>
+              <div class="btn" style="width:100%; text-align:center; box-sizing:border-box;">로그인</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 미션 - 제출 전 -->
+      <div class="screen-block">
+        <div class="block-label"><span>02 · 미션 화면 — 이번 주 (제출 전)</span><span class="state-chip default">기본 상태</span></div>
+        <div class="screen">
+          <div class="screen-nav">
+            <span class="navtab active">신입 뷰</span><span class="navtab">피드백 히스토리</span><span class="navtab">내 타임라인</span>
+            <span class="navlogo">INTERX</span>
+          </div>
+          <div class="screen-body">
+            <div class="muted" style="margin-bottom:8px;">1주차 / 26주</div>
+            <div class="week-pills"><span class="active">1주차</span></div>
+            <div class="card">
+              <div class="label">사실형 · 이번 주 회고 미션</div>
+              <div class="quote">"이번 주 예상과 다르게 흘러간 업무 상황이 있었나요? 그때 어떻게 대응했는지 편하게 들려주세요."</div>
+            </div>
+            <div class="field" style="height:44px; display:flex; align-items:flex-start;">300자 이내로 적어주세요</div>
+            <div class="btn">제출하기</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 제출 확인 다이얼로그 -->
+      <div class="screen-block">
+        <div class="block-label"><span>02a · 제출 확인 다이얼로그</span><span class="state-chip default">제출 버튼 클릭 시 오버레이</span></div>
+        <div class="screen">
+          <div class="dialog-mock">
+            <div class="backdrop">
+              <div class="dialog-box">
+                <div class="h">제출하면 이후에는 답변을 수정할 수 없습니다.</div>
+                <div class="q">제출하시겠습니까?</div>
+                <div class="dialog-actions">
+                  <span class="btn" style="flex:1; text-align:center;">네</span>
+                  <span class="btn secondary" style="flex:1; text-align:center;">아니오</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 미션 - 제출 완료 -->
+      <div class="screen-block">
+        <div class="block-label"><span>02b · 미션 화면 — 제출 완료</span><span class="state-chip success">success</span></div>
+        <div class="screen">
+          <div class="screen-nav">
+            <span class="navtab active">신입 뷰</span><span class="navtab">피드백 히스토리</span><span class="navtab">내 타임라인</span>
+            <span class="navlogo">INTERX</span>
+          </div>
+          <div class="screen-body">
+            <div class="week-pills"><span class="active">1주차</span></div>
+            <div class="card"><div class="label">사실형 · 이번 주 회고 미션</div></div>
+            <div class="success-line">✅ 제출 완료 — 답변이 저장됐습니다.</div>
+            <div class="card">
+              <div class="label">AI 피드백</div>
+              <div class="quote" style="font-size:11px;">문서화 실책의 불일치는 구체적인 상황을 제시하고, 파트너사 담당자와 직접 통화해 범위를 재조정한 행동까지 서술한 점이 좋습니다…</div>
+            </div>
+            <div class="card"><div class="label">💡 넛지</div><div class="quote" style="font-size:11px;">다음엔 그 판단 기준을 한 줄로 미리 적어두면 회고가 더 빨라질 거예요.</div></div>
+            <div class="locked-box">🔒 이번 주 점수는 표시되지 않습니다. 다음 주에 새 미션이 열립니다.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 과거 주차 열람 -->
+      <div class="screen-block">
+        <div class="block-label"><span>02c · 과거 주차 열람</span><span class="state-chip default">읽기 전용</span></div>
+        <div class="screen">
+          <div class="screen-body">
+            <div class="week-pills">
+              <span>1주차</span><span>2주차</span><span class="active">3주차</span><span>4주차</span><span>…</span>
+            </div>
+            <div class="card"><div class="label">사실형 · 3주차 미션</div></div>
+            <div class="muted">과거 주차는 제출 폼 없이 그때 낸 답변·피드백만 조회됩니다. 답변이 없다면 "이 주차엔 제출한 답변이 없습니다."</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 종합 해석 카드 (조건부) -->
+      <div class="screen-block" style="border-color: var(--accent-intern);">
+        <div class="block-label"><span>03 · 3·6개월 종합 해석 카드</span><span class="state-chip locked">13주차부터 3개월 카드, 26주차부터 6개월 카드 — 둘 다 뜰 수 있음</span></div>
+        <div class="screen">
+          <div class="screen-body">
+            <div class="card" style="margin-bottom:8px;">
+              <div class="label">인터엑스와 함께한 3개월 — 생성 전</div>
+              <div class="muted" style="margin-bottom:6px;">지금까지 함께해온 시간을 돌아보며, 나만의 성장 이야기를 만나볼 수 있어요.</div>
+              <div class="btn">나의 여정 돌아보기</div>
+            </div>
+            <div class="card" style="margin-bottom:8px;">
+              <div class="label">인터엑스와 함께한 3개월 — 생성 후</div>
+              <div class="quote" style="font-size:11px;">초반 몇 주 동안의 기록은 체크리스트 누락·코드 입력 오류…9주차에는 물음의 조건을 스스로 언어화하는 장면이 나타나고, 훈련부에 이르면 개인의 기준이 '내가 빠르게 처리하는 것'에서 '팀 전체가…' 것으로 이해했습니다…</div>
+              <div class="muted" style="margin-top:6px; font-size:10.5px;">실제 API로 생성한 문구 그대로 — 점수·가치명은 어디에도 없음</div>
+            </div>
+            <div class="card">
+              <div class="label">인터엑스와 함께한 6개월 — 생성 전</div>
+              <div class="muted" style="margin-bottom:6px;">지금까지 함께해온 시간을 돌아보며, 나만의 성장 이야기를 만나볼 수 있어요.</div>
+              <div class="btn">나의 여정 돌아보기</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 피드백 히스토리 -->
+      <div class="screen-block">
+        <div class="block-label"><span>04 · 피드백 히스토리</span><span class="state-chip default">FeedbackPage</span></div>
+        <div class="screen">
+          <div class="screen-nav">
+            <span class="navtab">신입 뷰</span><span class="navtab active">피드백 히스토리</span><span class="navtab">내 타임라인</span>
+            <span class="navlogo">INTERX</span>
+          </div>
+          <div class="screen-body">
+            <div class="card">
+              <div class="label">"이번 주 예상과 다르게 흘러간 업무 상황이…"</div>
+              <div class="quote" style="font-size:11px;">AI 피드백 + 넛지가 미션별로 쌓여서 표시됨</div>
+            </div>
+            <div class="muted" style="margin-top:8px;">빈 상태: "아직 제출된 답변이 없습니다." · 조회 실패해도 "요청 실패(404)" 같은 문구 대신 "피드백을 불러올 수 없습니다."</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 내 타임라인 -->
+      <div class="screen-block">
+        <div class="block-label"><span>05 · 내 타임라인</span><span class="state-chip locked">기본은 잠김 — 미션당 1회 제출 구조라 사실상 항상 이 상태</span></div>
+        <div class="screen">
+          <div class="screen-nav">
+            <span class="navtab">신입 뷰</span><span class="navtab">피드백 히스토리</span><span class="navtab active">내 타임라인</span>
+            <span class="navlogo">INTERX</span>
+          </div>
+          <div class="screen-body">
+            <div class="card">
+              <div class="label">"이번 주 예상과 다르게 흘러간 업무 상황이…"</div>
+              <div class="muted" style="font-size:10.5px; margin-bottom:6px;">나의 성장 타임라인 (6개월 후 공개 · 점수 없음)</div>
+              <div class="quote" style="font-size:10.5px; margin-bottom:8px;">#1 문서와 실제 스펙의 불일치라는 구체적인 상황을 제시하고…</div>
+              <div class="locked-box">🔒 인터엑스와 함께한 여정 이야기는 3개월·6개월 시점에 만나볼 수 있어요</div>
+            </div>
+            <div class="muted" style="margin-top:8px;">같은 질문(미션)에 2회 이상 답변이 쌓인 경우에만 "성장 서사 생성하기 (AI)" 버튼이 대신 나타남 — 미션당 1회 제출 구조라 실제로는 거의 발생하지 않는 예외 경로</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MANAGER ============ -->
+  <section class="role" id="manager" data-role="manager">
+    <div class="role-head">
+      <h2>팀장이 보는 것</h2>
+      <span class="role-tag mono">role: manager · 1 screen · 신입은 이 데이터를 절대 볼 수 없음</span>
+    </div>
+    <div class="role-nav-mini"><span>매니저 뷰</span></div>
+
+    <div class="screen-grid wide">
+      <div class="screen-block">
+        <div class="block-label"><span>01 · 비공개 관찰 입력</span><span class="state-chip locked">신입 열람 불가</span></div>
+        <div class="screen">
+          <div class="screen-nav"><span class="navtab active">매니저 뷰</span><span class="navlogo">INTERX</span></div>
+          <div class="screen-body">
+            <div class="card">
+              <div class="label">비공개 매니저 관찰 입력</div>
+              <div class="muted" style="margin-bottom:8px;">매주 입력하는 게 아니라, 3개월차·6개월차 심사 직전에 한 번씩만 남기면 됩니다.</div>
+              <div class="field">신입 선택 ▾</div>
+              <div style="display:flex; gap:6px; margin-bottom:10px;">
+                <span class="btn">3개월차 관찰</span><span class="btn secondary">6개월차 관찰</span>
+              </div>
+              <div class="value-tag-grid">
+                <div>· 초효율적 시간관리</div><div>· 최고수준의 결과지향</div>
+                <div>· 혁신 프로세스 가속화</div><div>· 미래낙관적 도전</div>
+                <div>· 성장지향 피드백</div><div>· 관계기반 전략소통</div>
+                <div>· 집요한 끈기</div>
+              </div>
+              <div class="slider-row">
+                <div class="sr-top"><span>관계기반 전략소통</span><span>62</span></div>
+                <div class="slider-track"><div class="slider-fill" style="width:62%;"></div></div>
+              </div>
+              <div class="slider-row">
+                <div class="sr-top"><span>집요한 끈기</span><span>78</span></div>
+                <div class="slider-track"><div class="slider-fill" style="width:78%;"></div></div>
+              </div>
+              <div class="muted" style="margin:8px 0 4px;">(위 7개 값 전부 슬라이더로 반복)</div>
+              <div class="field" style="height:32px;">(선택) 맥락 코멘트 — 이 신입에게는 절대 노출되지 않습니다.</div>
+              <div class="btn">3개월차 관찰 저장</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen-block">
+        <div class="block-label"><span>02 · 내가 남긴 관찰</span><span class="state-chip default">저장 이력</span></div>
+        <div class="screen">
+          <div class="screen-body">
+            <div class="card">
+              <div class="label">demo-timeline@test.local · 3개월차 관찰</div>
+              <div class="quote" style="font-size:11px;">초효율적 시간관리 62 · 최고수준의 결과지향 70 · 관계기반 전략소통 55 …</div>
+              <div class="muted" style="margin-top:4px;">코멘트: 회의 중 발언은 적지만 후속 실행이 빠름</div>
+            </div>
+            <div class="muted">빈 상태: "아직 남긴 관찰이 없습니다." · 같은 신입·시점을 다시 열면 기존 값 불러와 수정 가능(문서 ID가 신입+시점으로 고정)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HR ============ -->
+  <section class="role" id="hr" data-role="hr">
+    <div class="role-head">
+      <h2>HR이 보는 것</h2>
+      <span class="role-tag mono">role: hr · 2 screens · 점수·비교·면담 기록까지 전부 열람 가능</span>
+    </div>
+    <div class="role-nav-mini"><span>인사팀 뷰</span></div>
+
+    <div class="screen-grid">
+      <div class="screen-block">
+        <div class="block-label"><span>01 · 대시보드</span><span class="state-chip default">DashboardPage</span></div>
+        <div class="screen">
+          <div class="screen-nav"><span class="navtab active">인사팀 뷰</span><span class="navlogo">INTERX</span></div>
+          <div class="screen-body">
+            <div class="card"><div class="label">미션별 점수 (열람 가능, 조정 불가)</div></div>
+            <div class="compare-row"><span>demo-timeline@test.local · 제출 26건</span><span style="color:var(--accent-hr); font-weight:700;">80</span></div>
+            <div class="compare-row"><span>qa-mission-11-high@test.local · 제출 1건</span><span style="color:var(--accent-hr); font-weight:700;">87</span></div>
+            <div class="compare-row"><span>loadtest-intern-7@test.local · 제출 0건</span><span style="color:var(--ink-faint);">–</span></div>
+            <div class="muted" style="margin-top:6px;">행 클릭 → 상세 페이지로 이동</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen-block" style="grid-column: span 2;">
+        <div class="block-label"><span>02 · 상세 페이지 — AI 채점 vs 팀장 관찰</span><span class="state-chip locked">13주차부터 노출</span></div>
+        <div class="screen">
+          <div class="screen-body">
+            <div class="card">
+              <div class="label">AI 채점 vs 팀장 관찰 — 3개월 시점</div>
+              <div class="muted" style="margin-bottom:6px; font-size:10.5px;">괴리가 크면(팀장 관찰이 AI보다 뚜렷이 낮음) 자기서술 답변이 실제 관찰보다 포장됐을 가능성 신호</div>
+              <div class="compare-row"><span>최고수준의 결과지향</span><span>AI 65 · 팀장 – </span></div>
+              <div class="compare-row"><span>미래낙관적 도전</span><span>AI 70 · 팀장 42 <span class="flag">⚠️ 괴리 +28</span></span></div>
+              <div class="compare-row"><span>집요한 끈기</span><span>AI 82 · 팀장 78</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen-block" style="grid-column: span 2;">
+        <div class="block-label"><span>03 · 상세 페이지 — 면담 자료</span><span class="state-chip default">ReviewPanel</span></div>
+        <div class="screen">
+          <div class="screen-body">
+            <div class="card">
+              <div class="label">3개월차 면담 자료</div>
+              <div class="muted" style="font-size:10.5px; margin-bottom:4px;">AI 종합 서사 (신입에게 보여준 것과 동일)</div>
+              <div class="quote" style="font-size:11px; margin-bottom:10px;">지난 3개월, 처음엔 낯설었던 질문들에…</div>
+
+              <div class="muted" style="font-size:10.5px;">주차별 평균 점수 추이</div>
+              <div class="sparkline">
+                <i style="height:40%"></i><i style="height:55%"></i><i style="height:35%"></i><i style="height:70%"></i>
+                <i style="height:60%"></i><i style="height:80%"></i><i style="height:65%"></i><i style="height:90%"></i>
+                <i style="height:75%"></i><i style="height:85%"></i><i style="height:95%"></i><i style="height:88%"></i>
+              </div>
+
+              <div class="muted" style="font-size:10.5px; margin:8px 0 4px;">상대적으로 약한 분야 (평균 낮은 순)</div>
+              <div class="slider-row">
+                <div class="sr-top"><span>최고수준의 결과지향</span><span>65</span></div>
+                <div class="slider-track"><div class="slider-fill" style="width:65%;"></div></div>
+              </div>
+              <div class="slider-row">
+                <div class="sr-top"><span>미래낙관적 도전</span><span>70</span></div>
+                <div class="slider-track"><div class="slider-fill" style="width:70%;"></div></div>
+              </div>
+
+              <div class="locked-box" style="margin:10px 0;">미제출 주차: 4, 9주차</div>
+
+              <div class="muted" style="font-size:10.5px;">면담 결과 (신입에게는 노출되지 않음)</div>
+              <div class="field" style="height:36px;">면담 진행 여부, 논의한 내용, 후속 조치 등을 기록하세요.</div>
+              <div class="btn">면담 결과 저장</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen-block">
+        <div class="block-label"><span>04 · 미션별 응답 카드</span><span class="state-chip default">HR 전용, 점수 그대로 노출</span></div>
+        <div class="screen">
+          <div class="screen-body">
+            <div class="card">
+              <div class="label">미션 #7 · 1번째 제출</div>
+              <div class="quote" style="font-size:11px; margin-bottom:8px;">AI 피드백 텍스트가 여기 표시됨</div>
+              <div class="slider-row">
+                <div class="sr-top"><span>구체성</span><span>74</span></div>
+                <div class="slider-track"><div class="slider-fill" style="width:74%;"></div></div>
+              </div>
+              <div class="field" style="height:30px; margin-top:8px;">HR 코멘트 (신입에게는 노출되지 않음)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    <div class="mono">onboarding-portal-e2c22 · localhost:3000 재구동 후 실제 화면과 대조해 작성 · 문구는 각 화면의 실제 카피 그대로 인용</div>
+  </footer>
+</div>
