@@ -1,13 +1,20 @@
 // 로드테스트: 더미 인턴 N명 × 라운드 R회씩 /api/score를 동시 CONCURRENCY개씩
 // 배치로 호출한다. 실제 Claude(또는 교체한 모델) 호출 횟수·비용을 실측하기 위한 스크립트다.
 //
+// api/score.js의 서버 사이드 주차 게이팅(리스크9 패치) 이후로는 계정 하나가 "이번 주"가
+// 아닌 missionId를 제출하면 403을 받는다. 그래서 (유저,라운드) 조합마다 별도 계정을
+// 쓴다 — seedTestUsers.js가 각 계정의 joinedAt을 라운드만큼 백데이트해서 "지금이 바로
+// 그 계정의 r주차"가 되도록 맞춰둔 상태를 그대로 이용한다.
+//
 // 사전 준비:
 //   1. .env.local에 VITE_FIREBASE_*, FIREBASE_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY, ANTHROPIC_API_KEY 설정
-//   2. node --env-file=.env.local scripts/seedTestUsers.js  (더미 인턴 계정 생성)
+//   2. node --env-file=.env.local scripts/seedTestUsers.js  (더미 인턴 계정 생성 — NUM_USERS/ROUNDS를
+//      바꿔서 실행할 거면 `node scripts/seedTestUsers.js <인원수> <라운드수>`로 동일하게 맞춰서 실행)
+//      ⚠️ joinedAt 백데이트는 실행 시점 기준이라, runLoadTest.js 실행 직전에 매번 다시 시딩해야 한다.
 //   3. 별도 터미널에서 vercel dev  (api/*.js가 로컬에서 응답하려면 필요 — `vite`만으로는 /api가 없음)
 //
 // 실행: node --env-file=.env.local scripts/runLoadTest.js
-// 환경변수로 조절: NUM_USERS(기본 20) ROUNDS(기본 8) CONCURRENCY(기본 10) BASE_URL(기본 http://localhost:3000)
+// 환경변수로 조절: NUM_USERS(기본 20) ROUNDS(기본 8, 최대 26) CONCURRENCY(기본 10) BASE_URL(기본 http://localhost:3000)
 
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
@@ -21,6 +28,11 @@ const ROUNDS = Number(process.env.ROUNDS ?? 8);
 const CONCURRENCY = Number(process.env.CONCURRENCY ?? 10);
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
 const BATCH_DELAY_MS = Number(process.env.BATCH_DELAY_MS ?? 500);
+
+if (ROUNDS > MISSION_BANK.length) {
+  console.error(`ROUNDS(${ROUNDS})는 MISSION_BANK 길이(${MISSION_BANK.length})를 넘을 수 없습니다 (한 주에 미션 1개, 최대 26주).`);
+  process.exit(1);
+}
 
 function firebaseConfigFromEnv() {
   const required = [
@@ -44,16 +56,20 @@ function firebaseConfigFromEnv() {
   };
 }
 
+// (유저,라운드) 조합마다 별도 계정이므로 로그인도 그만큼 각각 필요하다 —
+// key는 `${u}-${r}` (u: 1..NUM_USERS, r: 1..ROUNDS).
 async function getIdTokens(auth) {
-  const tokens = [];
-  for (let i = 1; i <= NUM_USERS; i++) {
-    const email = emailFor(i);
-    try {
-      const cred = await signInWithEmailAndPassword(auth, email, TEST_PASSWORD);
-      tokens.push(await cred.user.getIdToken());
-    } catch (e) {
-      console.error(`로그인 실패 (${email}): ${e.message} — 먼저 seedTestUsers.js를 실행했는지 확인하세요.`);
-      process.exit(1);
+  const tokens = {};
+  for (let u = 1; u <= NUM_USERS; u++) {
+    for (let r = 1; r <= ROUNDS; r++) {
+      const email = emailFor(u, r);
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, TEST_PASSWORD);
+        tokens[`${u}-${r}`] = await cred.user.getIdToken();
+      } catch (e) {
+        console.error(`로그인 실패 (${email}): ${e.message} — 먼저 seedTestUsers.js를 실행했는지 확인하세요.`);
+        process.exit(1);
+      }
     }
   }
   return tokens;
@@ -61,9 +77,11 @@ async function getIdTokens(auth) {
 
 function buildTasks(idTokens) {
   const tasks = [];
-  for (let u = 0; u < NUM_USERS; u++) {
+  for (let u = 1; u <= NUM_USERS; u++) {
     for (let r = 1; r <= ROUNDS; r++) {
-      const mission = MISSION_BANK[(r - 1) % MISSION_BANK.length];
+      // seedTestUsers.js가 이 계정의 joinedAt을 (r-1)주 전으로 백데이트해뒀으므로,
+      // 서버 게이팅(getCurrentWeek)이 통과하려면 missionId도 정확히 r이어야 한다.
+      const mission = MISSION_BANK[r - 1];
       const seed = u * 100000 + r * 1000 + mission.id;
 
       // dummyCorpus.json이 있으면(generateDummyCorpus.js로 미리 생성) 품질별
@@ -72,7 +90,13 @@ function buildTasks(idTokens) {
       const answerText = corpusPick?.answerText ?? generateDummyAnswer(mission, seed);
       const quality = corpusPick?.quality ?? "template";
 
-      tasks.push({ idToken: idTokens[u], missionId: mission.id, answerText, quality, label: `user${u + 1}-round${r}` });
+      tasks.push({
+        idToken: idTokens[`${u}-${r}`],
+        missionId: mission.id,
+        answerText,
+        quality,
+        label: `user${u}-round${r}`,
+      });
     }
   }
   return tasks;
@@ -126,7 +150,7 @@ async function main() {
   const app = initializeApp(firebaseConfigFromEnv());
   const auth = getAuth(app);
 
-  console.log(`${NUM_USERS}명 로그인 중...`);
+  console.log(`${NUM_USERS}명 × ${ROUNDS}라운드 = ${NUM_USERS * ROUNDS}개 계정 로그인 중...`);
   const idTokens = await getIdTokens(auth);
 
   const tasks = buildTasks(idTokens);

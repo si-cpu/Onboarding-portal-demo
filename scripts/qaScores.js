@@ -3,21 +3,33 @@
 // Firestore에서 점수를 직접 읽어 비교한다 (score.js는 보안상 점수를 클라이언트에
 // 안 내려주므로 Admin SDK로 우회 조회 — QA 전용 예외).
 //
+// api/score.js의 서버 사이드 주차 게이팅(리스크9 패치) 때문에 계정 하나로 26개
+// 미션을 한 번에 채점시킬 수 없다(그 계정의 "이번 주"가 아닌 missionId는 403).
+// 그래서 미션마다 전용 QA 계정(`qa-mission-{missionId}@test.local`)을 두고,
+// joinedAt을 (missionId-1)주 전으로 백데이트해서 "지금이 바로 이 계정의 그 주차"가
+// 되도록 맞춘다 — intern@test.local(수동 데모용 공용 계정)은 건드리지 않는다.
+//
 // 사전 준비:
 //   1. npm run gen:dummy-corpus (dummyCorpus.json이 아직 없으면)
 //   2. npm run dev:api (vercel dev가 떠 있어야 함)
 // 실행: node --env-file=.env.local scripts/qaScores.js
+//   ⚠️ joinedAt 백데이트는 실행 시점 기준이라 매번 계정을 다시 맞춘 뒤 바로 이어서 채점한다.
 
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth as getClientAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { MISSION_BANK } from "../api/missionBank.js";
 import { loadCorpus } from "./corpusAnswer.js";
 import { ensureAdminApp } from "./_adminApp.js";
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
-const TEST_EMAIL = "intern@test.local";
-const TEST_PASSWORD = "RoleTest1234!";
+const QA_PASSWORD = "QaScore1234!";
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function qaEmailFor(missionId) {
+  return `qa-mission-${missionId}@test.local`;
+}
 
 function firebaseConfigFromEnv() {
   const required = ["VITE_FIREBASE_API_KEY", "VITE_FIREBASE_AUTH_DOMAIN", "VITE_FIREBASE_PROJECT_ID", "VITE_FIREBASE_APP_ID"];
@@ -36,6 +48,21 @@ function firebaseConfigFromEnv() {
   };
 }
 
+// missionId 전용 QA 계정을 만들고(없으면 생성), joinedAt을 이 실행 시점 기준으로
+// (missionId-1)주 전으로 맞춘 뒤 uid를 반환한다.
+async function ensureQaAccount(adminAuth, adminDb, missionId) {
+  const email = qaEmailFor(missionId);
+  let user;
+  try {
+    user = await adminAuth.getUserByEmail(email);
+  } catch {
+    user = await adminAuth.createUser({ email, password: QA_PASSWORD, emailVerified: true });
+  }
+  const joinedAt = new Date(Date.now() - (missionId - 1) * WEEK_MS);
+  await adminDb.collection("users").doc(user.uid).set({ role: "intern", email, joinedAt }, { merge: true });
+  return user.uid;
+}
+
 async function main() {
   const corpus = loadCorpus();
   if (!corpus) {
@@ -43,21 +70,22 @@ async function main() {
     process.exit(1);
   }
 
-  const app = initializeApp(firebaseConfigFromEnv());
-  const auth = getAuth(app);
-  const cred = await signInWithEmailAndPassword(auth, TEST_EMAIL, TEST_PASSWORD);
-  const idToken = await cred.user.getIdToken();
-  const uid = cred.user.uid;
+  const clientAuth = getClientAuth(initializeApp(firebaseConfigFromEnv()));
+  const adminApp = ensureAdminApp();
+  const adminAuth = getAdminAuth(adminApp);
+  const adminDb = getFirestore(adminApp);
 
-  const adminDb = getFirestore(ensureAdminApp());
   const salt = Date.now(); // 매 실행마다 답변을 고유하게 만들어 해시 캐시를 우회(진짜로 다시 채점되게)
-
   const rows = [];
 
   for (const [missionIdStr, variants] of Object.entries(corpus)) {
     const missionId = Number(missionIdStr);
     const mission = MISSION_BANK.find((m) => m.id === missionId);
     if (!mission) continue;
+
+    const uid = await ensureQaAccount(adminAuth, adminDb, missionId);
+    const cred = await signInWithEmailAndPassword(clientAuth, qaEmailFor(missionId), QA_PASSWORD);
+    const idToken = await cred.user.getIdToken();
 
     for (const variant of variants) {
       const answerText = `${variant.answerText} (qa-${salt})`;
