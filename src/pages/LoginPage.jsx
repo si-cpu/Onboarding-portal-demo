@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../lib/firebase";
 
 export default function LoginPage() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
@@ -13,6 +15,12 @@ export default function LoginPage() {
     setError(null);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // useAuth()의 onAuthStateChanged 리스너가 결국 user를 갱신해서 LoginRoute가
+      // 알아서 리다이렉트하긴 하지만, 그 반영 타이밍에 따라 로그인 버튼을 눌러도
+      // 화면이 로그인 폼에 그대로 멈춰있는 것처럼 보일 수 있었다(새로고침해야
+      // 넘어가는 것처럼 보이는 증상). 로그인 성공 직후 명시적으로 이동시켜서
+      // 그 타이밍에 기대지 않게 한다.
+      navigate("/", { replace: true });
     } catch (e) {
       setError("로그인 실패: 이메일/비밀번호를 확인해 주세요.");
     }

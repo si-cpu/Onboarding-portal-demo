@@ -20,6 +20,14 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+      // 로그인/로그아웃으로 auth 상태가 바뀔 때마다 다시 loading을 true로
+      // 돌려야 한다 — 이게 없으면 로그인 직후 user는 이미 갱신됐는데 role은
+      // 아직 Firestore에서 못 불러온 그 짧은 순간에, RoleHome 같은 라우트가
+      // "role 없음"으로 오판해서 로그인 화면으로 되돌려보낼 수 있다(로그인
+      // 버튼을 눌러도 화면이 안 넘어가고 새로고침해야만 되는 것처럼 보이는
+      // 증상의 원인). loading은 최초 1번만 false가 되고 그 뒤로 다시 true로
+      // 안 돌아가던 게 버그였다.
+      setLoading(true);
       setUser(nextUser);
       if (nextUser) {
         // 프로필 조회가 실패해도(Firestore 규칙 미배포 등) loading이 영원히
