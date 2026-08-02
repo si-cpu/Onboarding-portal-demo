@@ -19,7 +19,15 @@ export function AuthProvider({ children }) {
   const [, forceRecheck] = useState(0);
 
   useEffect(() => {
+    // React.StrictMode(main.jsx)는 개발 모드에서 이 effect를 "마운트 → 클린업 →
+    // 재마운트"로 일부러 두 번 실행한다. 클린업으로 구독을 끊어도 그 안에서 이미
+    // 시작된 비동기 프로필 조회는 계속 실행되다가 나중에 끝나면서 상태를 다시
+    // 덮어쓸 수 있다 — 이 effect의 "이번 실행"이 이미 정리됐으면 그 뒤에 도착하는
+    // 비동기 결과는 전부 무시하도록 막는다(표준적인 stale-effect 가드).
+    let active = true;
+
     const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+      if (!active) return;
       // 로그인/로그아웃으로 auth 상태가 바뀔 때마다 다시 loading을 true로
       // 돌려야 한다 — 이게 없으면 로그인 직후 user는 이미 갱신됐는데 role은
       // 아직 Firestore에서 못 불러온 그 짧은 순간에, RoleHome 같은 라우트가
@@ -34,9 +42,11 @@ export function AuthProvider({ children }) {
         // true로 남아있으면 안 되므로 반드시 잡아준다.
         try {
           const profile = await getCurrentUserProfile();
+          if (!active) return;
           setRole(profile.role);
           setJoinedAt(profile.joinedAt);
         } catch (e) {
+          if (!active) return;
           console.error("프로필 조회 실패:", e.message);
           setRole(null);
           setJoinedAt(null);
@@ -45,9 +55,13 @@ export function AuthProvider({ children }) {
         setRole(null);
         setJoinedAt(null);
       }
-      setLoading(false);
+      if (active) setLoading(false);
     });
-    return unsubscribe;
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
