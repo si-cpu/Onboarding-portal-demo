@@ -20,6 +20,7 @@ import { MISSION_BANK } from "./missionBank.js";
 import { adminDb, requireUid, requireIntern } from "./_firebaseAdmin.js";
 import { hashAnswer } from "./_hash.js";
 import { generateNudgeText } from "./nudge.js";
+import { getCurrentWeek } from "./_week.js";
 import { newRequestId, log, alert } from "./_logger.js";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -88,6 +89,18 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: `답변은 ${MAX_ANSWER_LENGTH}자를 넘을 수 없습니다.` });
   }
 
+  // 클라이언트(MissionPage)는 currentWeek에 해당하는 미션만 렌더링하지만, 그건
+  // UI 레벨 가드일 뿐이다 — comprehensiveReview.js가 reviewType을 서버에서 직접
+  // 검증하는 것과 같은 이유로, 여기서도 joinedAt 기준 실제 주차와 missionId가
+  // 일치하는지 서버가 직접 검증해야 한다(그래야 임의 missionId 조기 제출을 막는다).
+  const userSnap = await adminDb.collection("users").doc(uid).get();
+  const joinedAt = userSnap.data()?.joinedAt?.toDate?.() ?? null;
+  const currentWeek = getCurrentWeek(joinedAt);
+  if (missionId !== currentWeek) {
+    log(requestId, "score.wrong_week", { uid, missionId, currentWeek });
+    return res.status(403).json({ error: "이번 주 미션이 아닙니다." });
+  }
+
   const answerHash = hashAnswer(answerText);
   const responses = adminDb.collection("responses");
 
@@ -107,6 +120,22 @@ export default async function handler(req, res) {
         nudge_text: cached.nudge_text ?? null,
         cached: true,
       });
+    }
+
+    // 같은 주차 미션에 이미 (다른 텍스트로) 제출한 기록이 있으면 재제출을 막는다.
+    // 해시가 다른 이상 위 캐시 히트로는 안 걸러지므로 별도 체크가 필요하다 —
+    // 이게 없으면 같은 missionId로 여러 번 다르게 제출해 round가 계속 쌓일 수 있고,
+    // comprehensiveReview.js가 missionId 중복 제거 없이 그대로 훑기 때문에 중복
+    // 데이터가 종합 해석에 섞여 들어간다.
+    const existingSnap = await responses
+      .where("userId", "==", uid)
+      .where("missionId", "==", missionId)
+      .limit(1)
+      .get();
+
+    if (!existingSnap.empty) {
+      log(requestId, "score.already_submitted", { uid, missionId });
+      return res.status(409).json({ error: "이번 주 미션에는 이미 답변을 제출했습니다." });
     }
 
     const rubric = mission.type === "정서형" ? RUBRIC_EMOTIONAL : RUBRIC_FACTUAL;
