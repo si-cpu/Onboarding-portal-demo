@@ -2,10 +2,32 @@ import { useEffect, useState } from "react";
 import { addDoc, collection, getDocs, orderBy, query, serverTimestamp, where } from "firebase/firestore";
 import { auth, db } from "../../lib/firebase";
 
-// manager_feedback: 신입은 절대 read 불가 (firestore.rules 참고, 평가자 익명성 원칙).
+// 팀장 관찰이 더 정확한 7개 관계·태도형 핵심가치(설계원칙 1번 "이중 측정 구조"의
+// 팀장 메타 피드백 대상). AI는 신입의 자기서술 답변으로 12개 전부를 채점하지만,
+// 이 7개는 자기서술만으로는 인상관리에 흔들리기 쉬워서 팀장 관찰을 별도 숫자로
+// 남겨야 AI 점수와 비교(KPI: AI-팀장 관찰 간 일치도)할 근거가 생긴다.
+const OBSERVED_VALUES = [
+  "초효율적 시간관리",
+  "최고수준의 결과지향",
+  "혁신 프로세스 가속화",
+  "미래낙관적 도전",
+  "성장지향 피드백",
+  "관계기반 전략소통",
+  "집요한 끈기",
+];
+
+const DEFAULT_SCORE = 50;
+
+function defaultScores() {
+  return Object.fromEntries(OBSERVED_VALUES.map((v) => [v, DEFAULT_SCORE]));
+}
+
+// manager_feedback: 신입은 절대 read 불가 (firestore.rules + 라우터의
+// RequireRole role="manager"로 이중 차단, 평가자 익명성 원칙).
 export default function MetaFeedbackPage() {
   const [interns, setInterns] = useState([]);
   const [selectedIntern, setSelectedIntern] = useState("");
+  const [scores, setScores] = useState(defaultScores);
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
   const [entries, setEntries] = useState([]);
@@ -31,15 +53,17 @@ export default function MetaFeedbackPage() {
   }, []);
 
   async function submit() {
-    if (!selectedIntern || !comment.trim()) return;
+    if (!selectedIntern) return;
     setSaving(true);
     try {
       await addDoc(collection(db, "manager_feedback"), {
         managerId: auth.currentUser.uid,
         internId: selectedIntern,
-        comment,
+        scores,
+        comment: comment.trim() || null,
         createdAt: serverTimestamp(),
       });
+      setScores(defaultScores());
       setComment("");
       await loadEntries();
     } catch (e) {
@@ -54,7 +78,7 @@ export default function MetaFeedbackPage() {
         <div className="label">비공개 매니저 피드백 작성</div>
         <select
           className="input"
-          style={{ marginBottom: 10 }}
+          style={{ marginBottom: 14 }}
           value={selectedIntern}
           onChange={(e) => setSelectedIntern(e.target.value)}
         >
@@ -65,25 +89,50 @@ export default function MetaFeedbackPage() {
             </option>
           ))}
         </select>
+
+        {OBSERVED_VALUES.map((value) => (
+          <div key={value} style={{ marginBottom: 12 }}>
+            <div className="muted" style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+              <span>{value}</span>
+              <span>{scores[value]}</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={scores[value]}
+              onChange={(e) => setScores((prev) => ({ ...prev, [value]: Number(e.target.value) }))}
+              style={{ width: "100%" }}
+            />
+          </div>
+        ))}
+
         <textarea
           className="textarea"
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          placeholder="이 신입에게는 절대 노출되지 않는 비공개 코멘트입니다."
+          placeholder="(선택) 맥락 코멘트 — 이 신입에게는 절대 노출되지 않습니다."
         />
-        <button className="btn" onClick={submit} disabled={saving}>
+        <button className="btn" onClick={submit} disabled={saving || !selectedIntern}>
           {saving ? "저장 중..." : "저장"}
         </button>
         {error && <div className="error">{error}</div>}
       </div>
 
       <div className="card card-wide">
-        <div className="label">내가 남긴 코멘트</div>
-        {entries.length === 0 && <div className="muted">아직 작성한 코멘트가 없습니다.</div>}
+        <div className="label">내가 남긴 피드백</div>
+        {entries.length === 0 && <div className="muted">아직 작성한 피드백이 없습니다.</div>}
         {entries.map((e) => (
-          <div className="row" key={e.id}>
+          <div className="row" key={e.id} style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
             <span>{e.internId}</span>
-            <span className="muted">{e.comment}</span>
+            {e.scores && (
+              <span className="muted" style={{ fontSize: 12 }}>
+                {Object.entries(e.scores)
+                  .map(([k, v]) => `${k} ${v}`)
+                  .join(" · ")}
+              </span>
+            )}
+            {e.comment && <span className="muted">{e.comment}</span>}
           </div>
         ))}
       </div>
