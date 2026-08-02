@@ -7,7 +7,7 @@ export default function TimelineView({ mission, entries, narrative, narrativeLoa
     <div className="card card-wide">
       <div className="label">{mission.question}</div>
       <div className="muted" style={{ marginBottom: 10 }}>
-        내 답변 타임라인 (6개월 종료 시 공개 · 점수 없음)
+        나의 성장 타임라인 (6개월 후 공개 · 점수 없음)
       </div>
 
       {!canGenerate && (
@@ -41,7 +41,7 @@ export default function TimelineView({ mission, entries, narrative, narrativeLoa
         ))}
       </div>
 
-      <LockedPanel>성장 궤적 종합 해석은 3/6개월 심사 시점에 잠금 해제</LockedPanel>
+      <LockedPanel>인터엑스와 함께한 여정 이야기는 3개월·6개월 시점에 만나볼 수 있어요</LockedPanel>
     </div>
   );
 }
