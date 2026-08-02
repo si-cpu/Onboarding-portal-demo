@@ -90,7 +90,7 @@
 ## 남아있는 알려진 한계 (지금 당장 안 고침, 인지만 해둠)
 
 - `runLoadTest.js`는 qaScores.js와 같은 재실행 충돌 가능성이 구조적으로 남아있다(같은 주에 두 번째로 돌리면 409). 다만 실패를 숨기지 않고 `실패: N건`으로 그대로 보여주므로 "가짜 초록불" 위험은 없다 — 필요해지면 같은 `runId` 방식으로 고친다.
-- 이 QA용 계정들(`qa-mission-*`, `loadtest-intern-*`, `demo-timeline@test.local`)은 정리(삭제) 스크립트가 없어 실행할수록 Firebase Auth에 계정이 누적된다. 프로토타입 규모에서는 무해하지만, 정리가 필요해지면 별도로 처리한다.
+- ~~이 QA용 계정들은 정리(삭제) 스크립트가 없어 누적된다~~ → **실제로 HR 대시보드에서 이 더미 계정 수백 개가 진짜 인턴처럼 그대로 노출되는 게 확인됨**(`DashboardPage.jsx`가 `role=="intern"`인 users 전부를 보여주기 때문). `scripts/cleanupTestAccounts.js` 추가해서 해결 — `loadtest-intern-*`/`qa-mission-*`/`demo-timeline-{tag}*` 패턴의 Auth 계정+Firestore 문서를 삭제(기본은 미리보기, `--yes`로 실제 삭제). `intern/manager/hr@test.local`과 발표용 `demo-timeline@test.local`은 패턴에 안 걸려 자동 보존됨.
 
 ## 다음 액션
 

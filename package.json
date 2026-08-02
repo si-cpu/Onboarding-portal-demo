@@ -14,7 +14,8 @@
     "gen:dummy-corpus": "node --env-file=.env.local scripts/generateDummyCorpus.js",
     "loadtest": "node --env-file=.env.local scripts/runLoadTest.js",
     "qa:scores": "node --env-file=.env.local scripts/qaScores.js",
-    "demo:walkthrough": "node --env-file=.env.local scripts/walkDemoTimeline.js"
+    "demo:walkthrough": "node --env-file=.env.local scripts/walkDemoTimeline.js",
+    "cleanup:test-accounts": "node --env-file=.env.local scripts/cleanupTestAccounts.js"
   },
   "dependencies": {
     "react": "^18.3.1",
