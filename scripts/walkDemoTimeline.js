@@ -18,9 +18,19 @@
 // 사전 준비:
 //   1. .env.local에 VITE_FIREBASE_*, FIREBASE_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY, ANTHROPIC_API_KEY 설정
 //   2. 별도 터미널에서 vercel dev (또는 BASE_URL로 배포된 주소 지정)
+//
+// 실행(발표용 고정 데모 계정 — demo-timeline@test.local):
+//   node --env-file=.env.local scripts/walkDemoTimeline.js
+//   완료 후: demo-timeline@test.local / DemoTimeline1234! 로 로그인하면 26주 전체 타임라인 +
+//   3개월/6개월 종합 해석을 브라우저에서 그대로 볼 수 있다.
+//
+// ⚠️ 이 계정은 한 번 26주를 다 걸으면 리스크9의 재제출 가드 때문에 다시 돌려도
+// missionId마다 "이미 제출했습니다" 409만 난다(발표용으로 상태를 고정해두기 위해
+// 의도된 동작). 프롬프트/톤 수정 같은 걸 다시 검증하고 싶으면 태그를 붙여서
+// 매번 새 계정으로 걸어라(발표용 계정은 그대로 안 건드려짐):
+//   node --env-file=.env.local scripts/walkDemoTimeline.js retest1
+//   → demo-timeline-retest1@test.local 로 새로 생성됨
 // 실행: node --env-file=.env.local scripts/walkDemoTimeline.js
-// 완료 후: demo-timeline@test.local / DemoTimeline1234! 로 로그인하면 26주 전체 타임라인 +
-//         3개월/6개월 종합 해석을 브라우저에서 그대로 볼 수 있다.
 
 import { initializeApp } from "firebase/app";
 import { getAuth as getClientAuth, signInWithEmailAndPassword } from "firebase/auth";
@@ -31,7 +41,8 @@ import { generateDummyAnswer } from "./dummyAnswer.js";
 import { loadCorpus } from "./corpusAnswer.js";
 import { ensureAdminApp } from "./_adminApp.js";
 
-const DEMO_EMAIL = "demo-timeline@test.local";
+const RUN_TAG = process.argv[2] ?? null;
+const DEMO_EMAIL = RUN_TAG ? `demo-timeline-${RUN_TAG}@test.local` : "demo-timeline@test.local";
 const DEMO_PASSWORD = "DemoTimeline1234!";
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
