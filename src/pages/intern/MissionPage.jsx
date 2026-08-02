@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { useMissions } from "../../hooks/useMissions";
 import { useResponses } from "../../hooks/useResponses";
-import { TOTAL_WEEKS, isReviewWeek, MID_REVIEW_WEEK } from "../../lib/week";
+import { TOTAL_WEEKS, MID_REVIEW_WEEK, FINAL_REVIEW_WEEK } from "../../lib/week";
 import MissionCard from "../../components/MissionCard";
 import AnswerForm from "../../components/AnswerForm";
 import FeedbackCard from "../../components/FeedbackCard";
@@ -53,9 +53,10 @@ export default function MissionPage() {
         {currentWeek}주차 / {TOTAL_WEEKS}주
       </div>
 
-      {isReviewWeek(currentWeek) && (
-        <ComprehensiveReviewCard reviewType={currentWeek === MID_REVIEW_WEEK ? "mid" : "final"} />
-      )}
+      {/* 정확히 그 주차일 때만 보여주면(===), 그 주에 못 보고 지나간 신입은
+          영영 종합 해석을 생성할 방법이 없어진다 — 그 주차 "이후" 내내 보이게 한다. */}
+      {currentWeek >= MID_REVIEW_WEEK && <ComprehensiveReviewCard reviewType="mid" />}
+      {currentWeek >= FINAL_REVIEW_WEEK && <ComprehensiveReviewCard reviewType="final" />}
 
       {currentMission ? (
         <>

@@ -3,13 +3,9 @@ import { useParams } from "react-router-dom";
 import { collection, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { getCurrentWeek } from "../../lib/week";
-import { OBSERVED_VALUES } from "../../lib/coreValues";
 import ScoreSlider from "../../components/ScoreSlider";
 import ReviewPanel from "../../components/ReviewPanel";
-
-// AI-팀장 관찰 평균 점수 차이가 이 이상이면 "자기서술이 실제 관찰보다 포장됐을
-// 가능성" 신호로 표시한다(임의 기준값 — 발표 전 실제 데이터로 조정 가능).
-const GAP_FLAG_THRESHOLD = 20;
+import ObservedComparisonPanel from "../../components/ObservedComparisonPanel";
 
 function avgOfScores(scores) {
   const values = Object.values(scores ?? {});
@@ -83,7 +79,7 @@ function HrCommentBox({ responseDocId, initialComment }) {
 export default function ResponseDetailPage() {
   const { internId } = useParams();
   const [responses, setResponses] = useState(null);
-  const [managerFeedback, setManagerFeedback] = useState([]);
+  const [managerFeedback, setManagerFeedback] = useState({}); // { mid: scores|null, final: scores|null }
   const [currentWeek, setCurrentWeek] = useState(1);
   const [reviews, setReviews] = useState({}); // { mid: narrative_text, final: narrative_text }
   const [interviews, setInterviews] = useState({}); // { mid: notes, final: notes }
@@ -92,22 +88,25 @@ export default function ResponseDetailPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [userSnap, respSnap, feedbackSnap] = await Promise.all([
+        const [userSnap, respSnap] = await Promise.all([
           getDoc(doc(db, "users", internId)),
           getDocs(query(collection(db, "responses"), where("userId", "==", internId), orderBy("round", "asc"))),
-          getDocs(query(collection(db, "manager_feedback"), where("internId", "==", internId))),
         ]);
 
         const joinedAt = userSnap.data()?.joinedAt?.toDate?.() ?? null;
         setCurrentWeek(getCurrentWeek(joinedAt));
         setResponses(respSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-        setManagerFeedback(feedbackSnap.docs.map((d) => d.data()));
 
-        const [midReview, finalReview, midInterview, finalInterview] = await Promise.all([
+        // 매니저 관찰은 3개월/6개월 시점에 한 번씩만 남기는 구조라
+        // (MetaFeedbackPage.jsx), 문서 ID가 `{internId}_{mid|final}`로 고정돼
+        // 있어 컬렉션 쿼리 없이 바로 조회한다.
+        const [midReview, finalReview, midInterview, finalInterview, midFeedback, finalFeedback] = await Promise.all([
           getDoc(doc(db, "reviews", `${internId}_mid`)),
           getDoc(doc(db, "reviews", `${internId}_final`)),
           getDoc(doc(db, "interviews", `${internId}_mid`)),
           getDoc(doc(db, "interviews", `${internId}_final`)),
+          getDoc(doc(db, "manager_feedback", `${internId}_mid`)),
+          getDoc(doc(db, "manager_feedback", `${internId}_final`)),
         ]);
         setReviews({
           mid: midReview.exists() ? midReview.data().narrative_text : null,
@@ -116,6 +115,10 @@ export default function ResponseDetailPage() {
         setInterviews({
           mid: midInterview.exists() ? midInterview.data().notes : "",
           final: finalInterview.exists() ? finalInterview.data().notes : "",
+        });
+        setManagerFeedback({
+          mid: midFeedback.exists() ? midFeedback.data().scores : null,
+          final: finalFeedback.exists() ? finalFeedback.data().scores : null,
         });
       } catch (e) {
         setError(e.message);
@@ -143,79 +146,53 @@ export default function ResponseDetailPage() {
   const showMid = currentWeek >= 13;
   const showFinal = currentWeek >= 26;
 
-  // AI(자기서술) 평균과 팀장 관찰 평균을 관찰형 7개 값 기준으로 나란히 비교한다.
-  // 괴리가 크면 "자기서술로는 포장됐지만 실제 관찰은 다르다"는 신호 —
+  // AI(자기서술) 평균을 그 시점 범위로 한정해서 팀장이 그 시점에 남긴 관찰
+  // (MetaFeedbackPage.jsx에서 mid/final 각각 한 번씩)과 짝지어 비교한다 —
+  // 3개월 시점엔 1~12주 AI 평균, 6개월 시점엔 1~25주 AI 평균과 비교하는 식.
   // KPI "AI 채점-팀장 관찰 간 일치도"가 바로 이 비교에서 나온다.
-  const aiAveragesByLabel = averageByLabel(responses.map((r) => r.scores));
-  const managerAveragesByLabel = averageByLabel(managerFeedback.map((f) => f.scores));
-  const comparisonRows = OBSERVED_VALUES.map((label) => ({
-    label,
-    ai: aiAveragesByLabel[label] ?? null,
-    manager: managerAveragesByLabel[label] ?? null,
-  })).filter((row) => row.ai !== null || row.manager !== null);
+  const aiMidAveragesByLabel = averageByLabel(responses.filter((r) => r.missionId <= 12).map((r) => r.scores));
+  const aiFinalAveragesByLabel = averageByLabel(responses.filter((r) => r.missionId <= 25).map((r) => r.scores));
 
   return (
     <div>
       <div className="label">{internId}의 제출 내역 ({currentWeek}주차)</div>
 
-      {comparisonRows.length > 0 && (
-        <div className="card card-wide">
-          <div className="label">AI 자기서술 채점 vs 팀장 관찰 (관계·태도형 7개 값)</div>
-          <div className="muted" style={{ marginBottom: 10, fontSize: 13 }}>
-            괴리가 크면(팀장 관찰이 AI보다 뚜렷이 낮음) 자기서술 답변이 실제 관찰보다 포장됐을 가능성 신호
-          </div>
-          {comparisonRows.map(({ label, ai, manager }) => {
-            const gap = ai != null && manager != null ? ai - manager : null;
-            const flagged = gap != null && Math.abs(gap) >= GAP_FLAG_THRESHOLD;
-            return (
-              <div
-                key={label}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "6px 0",
-                  borderBottom: "1px solid var(--border)",
-                  fontSize: 13,
-                }}
-              >
-                <span>{label}</span>
-                <span>
-                  AI {ai ?? "–"} · 팀장 {manager ?? "–"}
-                  {flagged && (
-                    <span style={{ color: "var(--danger)", marginLeft: 8 }}>
-                      ⚠️ 괴리 {gap > 0 ? "+" : ""}
-                      {gap}
-                    </span>
-                  )}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       {showMid && (
-        <ReviewPanel
-          reviewType="mid"
-          weakAreas={computeWeakAreas(responses.filter((r) => r.missionId <= 12))}
-          missedWeeks={computeMissedWeeks(responses, 12)}
-          trendPoints={trendPoints.filter((p) => p.week <= 12)}
-          narrativeText={reviews.mid}
-          initialNotes={interviews.mid}
-          onSaveNotes={(notes) => saveInterviewNotes("mid", notes)}
-        />
+        <>
+          <ObservedComparisonPanel
+            title="AI 채점 vs 팀장 관찰 — 3개월 시점"
+            aiAveragesByLabel={aiMidAveragesByLabel}
+            managerScores={managerFeedback.mid}
+          />
+          <ReviewPanel
+            reviewType="mid"
+            weakAreas={computeWeakAreas(responses.filter((r) => r.missionId <= 12))}
+            missedWeeks={computeMissedWeeks(responses, 12)}
+            trendPoints={trendPoints.filter((p) => p.week <= 12)}
+            narrativeText={reviews.mid}
+            initialNotes={interviews.mid}
+            onSaveNotes={(notes) => saveInterviewNotes("mid", notes)}
+          />
+        </>
       )}
 
       {showFinal && (
-        <ReviewPanel
-          reviewType="final"
-          weakAreas={computeWeakAreas(responses.filter((r) => r.missionId <= 25))}
-          missedWeeks={computeMissedWeeks(responses, 25)}
-          trendPoints={trendPoints.filter((p) => p.week <= 25)}
-          narrativeText={reviews.final}
-          initialNotes={interviews.final}
-          onSaveNotes={(notes) => saveInterviewNotes("final", notes)}
-        />
+        <>
+          <ObservedComparisonPanel
+            title="AI 채점 vs 팀장 관찰 — 6개월 시점"
+            aiAveragesByLabel={aiFinalAveragesByLabel}
+            managerScores={managerFeedback.final}
+          />
+          <ReviewPanel
+            reviewType="final"
+            weakAreas={computeWeakAreas(responses.filter((r) => r.missionId <= 25))}
+            missedWeeks={computeMissedWeeks(responses, 25)}
+            trendPoints={trendPoints.filter((p) => p.week <= 25)}
+            narrativeText={reviews.final}
+            initialNotes={interviews.final}
+            onSaveNotes={(notes) => saveInterviewNotes("final", notes)}
+          />
+        </>
       )}
 
       {responses.map((r) => (
