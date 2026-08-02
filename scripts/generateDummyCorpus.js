@@ -74,6 +74,25 @@ ${levels.map((l) => `- ${l.quality}: ${l.guide}`).join("\n")}
       continue;
     }
 
+    // ⚠️ 배열 길이/품질 태그 자체가 모자란 경우도 걸러야 한다 — 실제로 미션 #19가
+    // evasive 1개만 반환되고 high/medium이 통째로 빠진 채 저장된 적이 있다.
+    // answerText 길이만 검증하면 "있는 항목의 내용"은 걸러도 "항목이 아예
+    // 없는 경우"는 못 잡는다.
+    if (!Array.isArray(parsed) || parsed.length !== levels.length) {
+      console.warn(
+        `  ⚠️ 미션 #${mission.id} 응답 개수 불일치 (${Array.isArray(parsed) ? parsed.length : "배열 아님"}/${levels.length}) (시도 ${attempt}/${MAX_ATTEMPTS}) — 재시도`
+      );
+      continue;
+    }
+    const presentQualities = new Set(parsed.map((v) => v.quality));
+    const missingQuality = levels.find((l) => !presentQualities.has(l.quality));
+    if (missingQuality) {
+      console.warn(
+        `  ⚠️ 미션 #${mission.id} [${missingQuality.quality}] 품질 태그 누락 (시도 ${attempt}/${MAX_ATTEMPTS}) — 재시도`
+      );
+      continue;
+    }
+
     const bad = parsed.find((v) => !v.answerText || v.answerText.trim().length < MIN_ANSWER_LENGTH);
     if (bad) {
       console.warn(

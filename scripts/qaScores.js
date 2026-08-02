@@ -149,6 +149,16 @@ async function main() {
   // null이면(에러난 경우 포함) 그냥 순서 비교 자체를 스킵했는데, 그 결과 대부분이
   // 에러난 실행에서도 failCount=0이 나와 "✅ 전부 통과"라는 가짜 초록불이 떴다.
   // 에러가 하나라도 있는 미션은 반드시 problemCount에 잡히게 한다.
+  //
+  // ⚠️ 여기서 또 두 가지를 추가로 잡는다(실제로 놓쳤던 케이스들):
+  // 1. 품질 항목 자체가 통째로 빠진 경우(예: 미션#19가 evasive 1개만 있고
+  //    high/medium이 없었음) — dummyCorpus.json 생성 시 응답 배열 길이가
+  //    모자란 경우인데, "비교할 게 없으니 그냥 넘어감"으로 조용히 통과되면
+  //    안 되고 반드시 에러로 집계한다.
+  // 2. high vs low만 비교하면 통과하지만 실제로는 순서가 뒤집힌 경우(예:
+  //    미션#23이 high=17, medium=49, low=15로 medium이 제일 높았는데
+  //    high>low만 보면 "PASS"로 잘못 나옴) — medium까지 포함해
+  //    high > medium > low/evasive 전체가 지켜지는지 확인한다.
   let orderReversedCount = 0;
   let errorMissionCount = 0;
   for (const [missionId, group] of Object.entries(byMission)) {
@@ -164,13 +174,25 @@ async function main() {
       continue;
     }
 
-    const high = group.find((r) => r.quality === "high")?.avg;
-    const low = group.find((r) => r.quality === "low" || r.quality === "evasive")?.avg;
-    if (high != null && low != null) {
-      const pass = high > low;
-      if (!pass) orderReversedCount++;
-      console.log(`  ${pass ? "✅ PASS" : "❌ FAIL"} — high(${high}) vs low/evasive(${low})`);
+    const expectedQualities = group[0].type === "정서형" ? ["high", "medium", "evasive"] : ["high", "medium", "low"];
+    const presentQualities = new Set(group.map((r) => r.quality));
+    const missingQualities = expectedQualities.filter((q) => !presentQualities.has(q));
+    if (missingQualities.length > 0) {
+      errorMissionCount++;
+      console.log(
+        `  ⚠️ ERROR — 품질 데이터 누락(${missingQualities.join(", ")}) — dummyCorpus.json 이 미션 항목이 불완전함(코퍼스 재생성 필요)`
+      );
+      continue;
     }
+
+    const high = group.find((r) => r.quality === "high")?.avg;
+    const medium = group.find((r) => r.quality === "medium")?.avg;
+    const low = group.find((r) => r.quality === "low" || r.quality === "evasive")?.avg;
+    const pass = high > medium && medium > low;
+    if (!pass) orderReversedCount++;
+    console.log(
+      `  ${pass ? "✅ PASS" : "❌ FAIL"} — high(${high}) > medium(${medium}) > low/evasive(${low}) ${pass ? "유지" : "위반"}`
+    );
   }
 
   const totalProblems = orderReversedCount + errorMissionCount;

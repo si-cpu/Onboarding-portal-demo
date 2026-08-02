@@ -22,16 +22,18 @@
 | 3 | 인덱스 배포 후 재실행하니 미션 #1·#2의 `high`까지 409로 막힘 | `qa-mission-{missionId}@test.local` 계정 하나로 high/medium/low 3개 품질을 연달아 제출 → 첫 제출(high) 이후 같은 계정+같은 missionId 재제출은 리스크9의 409 가드에 막힘. `salt`는 answerHash 캐시만 우회할 뿐 이 가드는 못 피함 | 계정을 missionId뿐 아니라 quality별로도 분리 (`qa-mission-{missionId}-{quality}@test.local`), 각 계정이 정확히 1회만 제출 | `825615f` |
 | 4 | 계정 분리 후 78건 전부 정상 채점, 25/26 PASS, **미션 #21만 3개 품질 전부 0점** | `generateDummyCorpus.js`가 `temperature:1`로 다양성을 주다 보니 드물게 `answerText`가 빈 문자열로 나오는 확률적 글리치가 있었는데, JSON 파싱 자체는 성공하니 검증 없이 그대로 `dummyCorpus.json`에 저장됨. 빈 답변을 채점하면 당연히 0점 → 루브릭 문제처럼 보였지만 실은 코퍼스 데이터 결함 | `generateForMission`에 답변 길이/빈 문자열 검증 + 최대 3회 재시도 가드 추가. `node scripts/generateDummyCorpus.js 21`처럼 특정 missionId만 저비용 재생성할 수 있게 CLI 인자 추가 | `efaca00` |
 | 5 | #21 코퍼스 재생성 후 재확인차 `qa:scores`를 다시 돌렸더니 76/78건이 409 에러, 그런데 최종 판정은 **"✅ 모든 미션 순서 유지됨"** | 이중 결함: (a) 같은 주 안에 `qa:scores`를 두 번째 돌리면 직전 실행에서 쓴 계정들이 이미 "이번 주 제출 완료" 상태라 리스크9 가드에 또 막힘. (b) 판정 로직이 `high`/`low` avg가 null(에러 포함)이면 순서 비교 자체를 스킵 → 에러난 미션이 "검사 대상 없음"으로 조용히 빠지면서 `failCount=0`이 되는 **가짜 초록불** | 계정 이메일에 실행마다 고유한 `runId`(`Date.now()`)를 붙여 재실행 충돌을 원천 차단. 판정 로직을 에러=스킵이 아니라 `errorMissionCount`로 명시 집계하도록 변경, 문제가 있으면 `process.exitCode=1` | `b773a6c` |
+| 6 | `runId` 픽스 이후 실제로 78/78 전부 에러 0건, 최종 "✅ 모든 미션 순서 유지됨" — 그런데 자세히 보니 **미션 #19는 evasive 1개만 채점되고 high/medium 자체가 없었음(판정 줄도 없이 조용히 통과 취급)**, **미션 #23은 high(17) < medium(49)로 순서가 뒤집혔는데 high(17)>low(15)만 봐서 "PASS"로 잘못 표시** | (a) `generateForMission`이 응답 배열의 "개수"·"품질 태그 존재 여부"는 검증 안 하고 "있는 항목의 텍스트 길이"만 검증해서, 품질 항목이 통째로 빠진 응답(#19)을 못 잡았음. (b) `qaScores.js` 판정 로직이 high vs low만 비교하고 medium을 안 봐서, high<medium인 완전히 뒤집힌 케이스(#23)를 "PASS"로 오판 | `generateForMission`에 배열 길이(`levels.length`)·품질 태그 누락 검증 추가. `qaScores.js` 판정을 "품질 항목 3개 다 있는지 확인(없으면 에러로 집계)" + "high>medium>medium>low/evasive 전부 확인"으로 강화 | `(다음 커밋)` |
 
 ## 지금까지 확인된 것 / 아직 확인 안 된 것
 
 **확인됨:**
-- 리스크9 패치(`score.js` 주차 게이팅 + 재제출 차단)는 의도대로 동작 — `runLoadTest.js` 160/160 성공으로 검증
-- 계정 분리 + 인덱스 추가 후 `qa:scores`가 78건 전부 실제로 채점됨(에러로 숨겨지지 않고) — 25/26 미션에서 루브릭이 high>low/evasive 순서를 명확히 지킴(예: 72 vs 22, 87 vs 20, 85 vs 15)
+- 리스크9 패치(`score.js` 주차 게이팅 + 재제출 차단)는 의도대로 동작 — `runLoadTest.js` 160/160 성공, `qa:scores` 78/78 에러 0건으로 검증
+- 24/26 미션(#19, #23 제외)에서 루브릭이 high>medium>low/evasive 순서를 명확히 지킴(예: 72 vs 33 vs 26, 87 vs 20, 85 vs 15)
 
 **아직 확인 안 됨 (다음 실행에서 봐야 함):**
-- 위 표의 #4·#5 수정(코퍼스 재시도 가드 + qa 재실행 멱등성)이 **동시에 적용된 상태로 돌린 깨끗한 78/78 결과**는 아직 없음. 미션 #21이 실제로 high>low를 지키는지는 이 다음 실행에서 확정된다.
-  - 만약 이번에도 #21에서 순서가 역전되면: 이건 더 이상 코퍼스/인프라 문제로 설명 안 되고, `api/score.js`의 `RUBRIC_FACTUAL` 앵커 자체를 봐야 하는 **제품 결함**으로 취급한다(QA 스크립트 버그로 치부하고 넘어가지 않는다).
+- 표의 #6 수정(코퍼스 배열 완전성 검증 + qa 판정 monotonic 체크)이 적용된 상태로 **미션 #19·#23을 재생성하고 재확인한 결과**는 아직 없음.
+  - `node scripts/generateDummyCorpus.js 19`, `node scripts/generateDummyCorpus.js 23`으로 재생성 후 `npm run qa:scores` 재실행 필요
+  - #23은 재생성해도 high가 여전히 비정상적으로 낮으면(다른 미션은 70~90점대인데 #23만 계속 20점대 근처), 코퍼스 문제가 아니라 `api/score.js`의 `RUBRIC_FACTUAL` 앵커나 #23의 가치 매핑(관계기반 전략소통/가치중심적 문제해결) 자체를 봐야 하는 **제품 결함**으로 취급한다.
 
 ## 남아있는 알려진 한계 (지금 당장 안 고침, 인지만 해둠)
 
@@ -40,7 +42,8 @@
 
 ## 다음 액션
 
-1. `git pull` 후 `npm run qa:scores` 한 번 더 깨끗하게 실행 (재시딩/삭제 불필요, 매번 새 계정 사용)
-2. 결과에서 78/78 전부 실제로 채점됐는지(에러 0건), 26개 미션 전부 high>low/evasive 순서가 지켜지는지 확인
-3. #21이 여전히 실패하면 `api/score.js`의 `RUBRIC_FACTUAL` 앵커 예시를 다시 본다
-4. 여기서 결론 나면 QA 트랙은 닫고, `CHARTER.md` 리스크1의 남은 항목(Vercel 프로덕션 배포)으로 넘어간다
+1. `git pull` 후 `node --env-file=.env.local scripts/generateDummyCorpus.js 19`, `node --env-file=.env.local scripts/generateDummyCorpus.js 23` 실행
+2. `npm run qa:scores` 재실행 (재시딩/삭제 불필요, 매번 새 계정 사용)
+3. 결과에서 78/78 전부 실제로 채점됐는지(에러 0건, 품질 누락 0건), 26개 미션 전부 high>medium>low/evasive 순서가 지켜지는지 확인
+4. #19·#23이 재생성 후에도 계속 문제면 코퍼스가 아니라 `api/score.js`의 루브릭/앵커·가치 매핑 자체를 봐야 하는 제품 결함으로 취급한다
+5. 여기서 결론 나면 QA 트랙은 닫고, `CHARTER.md` 리스크1의 남은 항목(Vercel 프로덕션 배포)으로 넘어간다
