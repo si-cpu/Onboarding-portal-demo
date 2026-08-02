@@ -70,9 +70,9 @@ ${answersBlock}
 - 담담하게 "무엇이 달라졌는지"를 관찰자 시점으로 서술
 - 3문장 이내
 - 점수/가치명은 절대 언급하지 말 것
+- 다른 설명·따옴표·JSON 없이 서사 본문만 출력할 것
 
-다음 JSON 형식으로만 응답하라:
-{ "narrative_text": "..." }`;
+서사 본문만 그대로 출력하라 (앞뒤에 아무것도 붙이지 말 것).`;
 
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
@@ -81,15 +81,15 @@ ${answersBlock}
     messages: [{ role: "user", content: prompt }],
   });
 
-  const raw = response.content.find((b) => b.type === "text")?.text ?? "{}";
-  let parsed;
-  try {
-    parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
-  } catch {
-    alert(requestId, "growthNarrative.parse_failed", { uid, missionId, raw: raw.slice(0, 300) });
-    return res.status(500).json({ error: "AI 응답 파싱 실패" });
+  // comprehensiveReview.js와 같은 이유로 JSON 래핑을 없앴다 — narrative_text
+  // 하나뿐인 응답을 굳이 JSON으로 감싸면, 서사 안에 인용부호가 섞였을 때
+  // JSON.parse가 깨질 위험만 생긴다(실제로 comprehensiveReview.js에서 발생).
+  const narrative_text = response.content.find((b) => b.type === "text")?.text?.trim();
+  if (!narrative_text) {
+    alert(requestId, "growthNarrative.empty_response", { uid, missionId });
+    return res.status(500).json({ error: "AI 응답이 비어있습니다." });
   }
 
   log(requestId, "growthNarrative.generated", { uid, missionId, rounds: snap.size });
-  return res.status(200).json(parsed);
+  return res.status(200).json({ narrative_text });
 }

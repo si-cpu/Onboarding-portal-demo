@@ -92,34 +92,36 @@ ${answersBlock}
 - 점수/가치명은 절대 언급하지 말 것
 - 담담한 관찰자 시점으로, 시간이 지나며 답변에서 실제로 무엇이 달라졌는지(다루는 주제, 대응 방식, 표현 등)를 서술
 - 5문장 이내
+- 다른 설명·따옴표·JSON 없이 서사 본문만 출력할 것
 
-다음 JSON 형식으로만 응답하라: { "narrative_text": "..." }`;
+서사 본문만 그대로 출력하라 (앞뒤에 아무것도 붙이지 말 것).`;
 
   log(requestId, "comprehensiveReview.claude_call_start", { uid, reviewType, sourceCount: included.length });
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 500,
+    max_tokens: 600,
     temperature: 0,
     messages: [{ role: "user", content: prompt }],
   });
 
-  const raw = response.content.find((b) => b.type === "text")?.text ?? "{}";
-  let parsed;
-  try {
-    parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
-  } catch {
-    alert(requestId, "comprehensiveReview.parse_failed", { uid, reviewType, raw: raw.slice(0, 300) });
-    return res.status(500).json({ error: "AI 응답 파싱 실패" });
+  // narrative_text는 필드 하나짜리 문자열이라 JSON으로 감싸 봐야 얻는 게 없고,
+  // 오히려 서사 안에 인용부호가 섞여 들어가면(신입 답변을 인용하는 경우 흔함)
+  // JSON.parse가 깨지는 위험만 생긴다 — 실제로 3개월 리뷰에서 이 파싱 실패가
+  // 발생했다(6개월 리뷰는 우연히 통과). 그래서 그냥 응답 텍스트를 그대로 쓴다.
+  const narrative_text = response.content.find((b) => b.type === "text")?.text?.trim();
+  if (!narrative_text) {
+    alert(requestId, "comprehensiveReview.empty_response", { uid, reviewType });
+    return res.status(500).json({ error: "AI 응답이 비어있습니다." });
   }
 
   await reviewRef.set({
     uid,
     reviewType,
-    narrative_text: parsed.narrative_text,
+    narrative_text,
     sourceCount: included.length,
     generatedAt: new Date().toISOString(),
   });
 
   log(requestId, "comprehensiveReview.generated", { uid, reviewType, sourceCount: included.length });
-  return res.status(200).json({ narrative_text: parsed.narrative_text, cached: false });
+  return res.status(200).json({ narrative_text, cached: false });
 }
