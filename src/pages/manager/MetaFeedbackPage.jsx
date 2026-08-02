@@ -1,20 +1,7 @@
 import { useEffect, useState } from "react";
 import { addDoc, collection, getDocs, orderBy, query, serverTimestamp, where } from "firebase/firestore";
 import { auth, db } from "../../lib/firebase";
-
-// 팀장 관찰이 더 정확한 7개 관계·태도형 핵심가치(설계원칙 1번 "이중 측정 구조"의
-// 팀장 메타 피드백 대상). AI는 신입의 자기서술 답변으로 12개 전부를 채점하지만,
-// 이 7개는 자기서술만으로는 인상관리에 흔들리기 쉬워서 팀장 관찰을 별도 숫자로
-// 남겨야 AI 점수와 비교(KPI: AI-팀장 관찰 간 일치도)할 근거가 생긴다.
-const OBSERVED_VALUES = [
-  "초효율적 시간관리",
-  "최고수준의 결과지향",
-  "혁신 프로세스 가속화",
-  "미래낙관적 도전",
-  "성장지향 피드백",
-  "관계기반 전략소통",
-  "집요한 끈기",
-];
+import { OBSERVED_VALUES } from "../../lib/coreValues";
 
 const DEFAULT_SCORE = 50;
 
