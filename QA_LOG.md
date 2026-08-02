@@ -43,18 +43,19 @@
   - 미션 #19: high/medium 데이터 자체가 없이 evasive 1개만 존재 — 판정 로직이 비교 대상 없음을 "문제 없음"으로 조용히 넘김
   - 미션 #23: high(17) < medium(49) < 그 외로 순서 완전히 뒤집힘 — 판정 로직이 high vs low(17 vs 15)만 봐서 "PASS"로 오판
 - 이 두 건은 타임라인 #6에서 판정 로직·코퍼스 검증을 강화하는 것으로 대응(커밋 `20ecdf8`)
-- **다음에 돌릴 QA 실행 #3**이 #19·#23 재생성 반영 후의 진짜 최종 결과가 된다
 
-## 지금까지 확인된 것 / 아직 확인 안 된 것
+### QA 실행 #3 (최종 — #19·#23 재생성 후, 2026-08-02)
+- `node scripts/generateDummyCorpus.js 19`, `node scripts/generateDummyCorpus.js 23`으로 재생성 후 `npm run qa:scores` 재실행
+- **26/26 미션 전부 PASS, 78/78 에러 0건, 품질 누락 0건**
+- 미션 #19: high(80) > medium(45) > evasive(25) — 정상 확인
+- 미션 #23: high(85) > medium(55) > low(20) — 재생성 전 high=17이던 게 85로 정상화됨. **코퍼스 생성 글리치였음이 확정**(루브릭/앵커 문제 아니었음)
+- 이걸로 **QA 트랙 완전히 종료** — 26개 미션 전부 실제 Claude 채점으로 high>medium>low/evasive 순서가 유지되는 것을 확인함
 
-**확인됨:**
-- 리스크9 패치(`score.js` 주차 게이팅 + 재제출 차단)는 의도대로 동작 — `runLoadTest.js` 160/160 성공, `qa:scores` 78/78 에러 0건으로 검증
-- 24/26 미션(#19, #23 제외)에서 루브릭이 high>medium>low/evasive 순서를 명확히 지킴(예: 72 vs 33 vs 26, 87 vs 20, 85 vs 15)
+## 최종 결론
 
-**아직 확인 안 됨 (다음 실행에서 봐야 함):**
-- 표의 #6 수정(코퍼스 배열 완전성 검증 + qa 판정 monotonic 체크)이 적용된 상태로 **미션 #19·#23을 재생성하고 재확인한 결과**는 아직 없음.
-  - `node scripts/generateDummyCorpus.js 19`, `node scripts/generateDummyCorpus.js 23`으로 재생성 후 `npm run qa:scores` 재실행 필요
-  - #23은 재생성해도 high가 여전히 비정상적으로 낮으면(다른 미션은 70~90점대인데 #23만 계속 20점대 근처), 코퍼스 문제가 아니라 `api/score.js`의 `RUBRIC_FACTUAL` 앵커나 #23의 가치 매핑(관계기반 전략소통/가치중심적 문제해결) 자체를 봐야 하는 **제품 결함**으로 취급한다.
+- 리스크9 패치(주차 게이팅 + 재제출 차단) 정상 동작 확인 (`runLoadTest.js` 160/160, `qa:scores` 78/78 무에러)
+- 26개 미션 전부(사실형/정서형, AI채점형/관찰형 값 섞어서) 루브릭이 high>medium>low/evasive 순서를 명확히 지킴 — 앵커·루브릭 자체는 신뢰할 만한 것으로 확인됨
+- 발견됐던 문제 전부 코퍼스 생성 단계(`generateDummyCorpus.js`, temperature:1 확률적 글리치)의 결함이었고, `api/score.js`의 실제 채점 로직 자체에는 결함이 발견되지 않음
 
 ## 남아있는 알려진 한계 (지금 당장 안 고침, 인지만 해둠)
 
@@ -63,8 +64,4 @@
 
 ## 다음 액션
 
-1. `git pull` 후 `node --env-file=.env.local scripts/generateDummyCorpus.js 19`, `node --env-file=.env.local scripts/generateDummyCorpus.js 23` 실행
-2. `npm run qa:scores` 재실행 (재시딩/삭제 불필요, 매번 새 계정 사용)
-3. 결과에서 78/78 전부 실제로 채점됐는지(에러 0건, 품질 누락 0건), 26개 미션 전부 high>medium>low/evasive 순서가 지켜지는지 확인
-4. #19·#23이 재생성 후에도 계속 문제면 코퍼스가 아니라 `api/score.js`의 루브릭/앵커·가치 매핑 자체를 봐야 하는 제품 결함으로 취급한다
-5. 여기서 결론 나면 QA 트랙은 닫고, `CHARTER.md` 리스크1의 남은 항목(Vercel 프로덕션 배포)으로 넘어간다
+QA 트랙은 닫혔다. 다음은 `CHARTER.md` 리스크1의 남은 항목 — **Vercel 프로덕션 배포 + 20명 규모 실부하테스트 실행**으로 넘어간다.
