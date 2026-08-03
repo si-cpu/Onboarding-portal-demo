@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { NARRATIVE_VALUES, OBSERVED_VALUES } from "../../lib/coreValues";
+import ScoreCaveat from "../../components/ScoreCaveat";
 
 // HR은 Firestore SDK로 responses를 직접 읽어도 된다 (firestore.rules: role() in ['manager','hr']).
 // 신입 화면과 달리 여기서는 scores를 그대로 다뤄도 원칙에 어긋나지 않는다.
@@ -68,6 +69,7 @@ export default function DashboardPage() {
   return (
     <div className="card card-wide">
       <div className="label">미션별 점수 (열람 가능, 조정 불가)</div>
+      <ScoreCaveat />
       <div className="muted" style={{ marginBottom: 10, fontSize: 13 }}>
         서술형 평균은 자기서술로도 신뢰도가 높은 5개 값, 관찰형 평균은 원래 팀장 관찰이
         더 정확한 7개 값을 AI 자기서술로 채점한 것(참고용 — 3/6개월 시점엔 실제 팀장

@@ -6,6 +6,7 @@ import { getCurrentWeek } from "../../lib/week";
 import ScoreSlider from "../../components/ScoreSlider";
 import ReviewPanel from "../../components/ReviewPanel";
 import ObservedComparisonPanel from "../../components/ObservedComparisonPanel";
+import ScoreCaveat from "../../components/ScoreCaveat";
 
 function avgOfScores(scores) {
   const values = Object.values(scores ?? {});
@@ -161,6 +162,7 @@ export default function ResponseDetailPage() {
   return (
     <div>
       <div className="label">{internEmail ?? internId}의 제출 내역 ({currentWeek}주차)</div>
+      <ScoreCaveat />
 
       {showMid && (
         <>
