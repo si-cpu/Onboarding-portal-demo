@@ -1,47 +1,34 @@
-import LockedPanel from "./LockedPanel";
-
-export default function TimelineView({ mission, entries, narrative, narrativeLoading, onGenerate }) {
-  const canGenerate = entries.length >= 2;
-
+// 26주차(6개월) 잠금 해제 후에만 렌더링된다(TimelinePage가 currentWeek로 게이트).
+// 예전엔 "같은 미션에 2회 이상 답변 쌓으면 AI 성장 서사 생성" 버튼이 있었는데, 26개
+// 미션이 전부 유니크 질문이라 정상 흐름에서 절대 그 조건에 도달하지 못하는 죽은
+// 기능이었다(growthNarrative.js와 함께 제거) — 3/6개월 종합 해석이 그 역할을 대신한다.
+export default function TimelineView({ mission, entries }) {
   return (
     <div className="card card-wide">
       <div className="label">{mission.question}</div>
-      <div className="muted" style={{ marginBottom: 10 }}>
-        나의 성장 타임라인 (6개월 후 공개 · 점수 없음)
-      </div>
-
-      {!canGenerate && (
-        <div className="muted">같은 질문에 2회 이상 답변을 쌓으면 성장 서사가 생성됩니다.</div>
-      )}
-
-      {canGenerate && (
-        <>
-          <button className="btn" onClick={onGenerate} disabled={narrativeLoading}>
-            {narrativeLoading ? "서사 생성 중..." : "성장 서사 생성하기 (AI)"}
-          </button>
-          {narrative && <div className="locked locked-solid" style={{ marginTop: 12 }}>{narrative}</div>}
-        </>
-      )}
-
-      <div style={{ marginTop: 14 }}>
-        {entries.map((entry) => (
-          <div
-            key={entry.round}
-            style={{
-              fontSize: 12,
-              color: "var(--text-dim)",
-              marginBottom: 8,
-              paddingBottom: 8,
-              borderBottom: "1px solid var(--border)",
-            }}
-          >
-            <div style={{ color: "var(--accent)", marginBottom: 3 }}>#{entry.round}</div>
+      {entries.map((entry) => (
+        <div
+          key={entry.round}
+          style={{
+            marginTop: 10,
+            paddingBottom: 10,
+            borderBottom: "1px solid var(--border)",
+          }}
+        >
+          <div className="badge" style={{ marginBottom: 6 }}>
+            {mission.id}주차 · #{entry.round}
+          </div>
+          {entry.answerText && (
+            <div style={{ fontSize: 13, marginBottom: 8 }}>{entry.answerText}</div>
+          )}
+          <div className="muted" style={{ fontSize: 12, marginBottom: entry.nudge_text ? 6 : 0 }}>
             {entry.feedback_text}
           </div>
-        ))}
-      </div>
-
-      <LockedPanel>인터엑스와 함께한 여정 이야기는 3개월·6개월 시점에 만나볼 수 있어요</LockedPanel>
+          {entry.nudge_text && (
+            <div style={{ fontSize: 12, color: "var(--accent)" }}>💡 {entry.nudge_text}</div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

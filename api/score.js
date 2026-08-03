@@ -226,8 +226,8 @@ ${answerText}
 
     // feedback_text를 scores와 같은 JSON 객체 안에 문자열 필드로 넣으면, 그 안에
     // 예시를 인용부호로 감싸 쓰는 경우(Claude가 종종 그렇게 함) 이스케이프 없이
-    // 그대로 나와 JSON.parse가 깨진다 — comprehensiveReview.js/growthNarrative.js가
-    // 겪은 것과 같은 문제를 QA 중 실측으로 재현해서 발견. scores(숫자만 있어 안전)는
+    // 그대로 나와 JSON.parse가 깨진다 — comprehensiveReview.js가 겪은 것과 같은
+    // 문제를 QA 중 실측으로 재현해서 발견. scores(숫자만 있어 안전)는
     // JSON 한 줄로 유지하되, feedback_text는 별도 마커 뒤 자유 텍스트로 분리해서
     // 인용부호가 섞여도 파싱이 안 깨지게 한다.
     async function callClaude(extraSystemNote) {

@@ -1,5 +1,5 @@
 // 서버 전용 Firebase Admin 초기화 (서비스 계정 사용, 클라이언트 firebase.js와 별개).
-// score/checkCache/growthNarrative가 공유하는 인증 검증 + Firestore 접근 헬퍼.
+// score/checkCache가 공유하는 인증 검증 + Firestore 접근 헬퍼.
 
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
@@ -40,7 +40,7 @@ export async function requireUid(req) {
   }
 }
 
-// score/checkCache/growthNarrative는 신입 전용 기능이다 — 로그인만 되어 있으면
+// score/checkCache는 신입 전용 기능이다 — 로그인만 되어 있으면
 // 매니저/인사팀 계정으로도 호출할 수 있던 구멍을 막는다.
 export async function requireIntern(uid) {
   const snap = await adminDb.collection("users").doc(uid).get();
