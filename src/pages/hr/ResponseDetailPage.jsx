@@ -8,12 +8,6 @@ import ReviewPanel from "../../components/ReviewPanel";
 import ObservedComparisonPanel from "../../components/ObservedComparisonPanel";
 import ScoreCaveat from "../../components/ScoreCaveat";
 
-function avgOfScores(scores) {
-  const values = Object.values(scores ?? {});
-  if (values.length === 0) return null;
-  return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
-}
-
 // 가치명 기준으로 점수를 평균 낸다. AI 자기서술 채점(responses.scores)과
 // 팀장 관찰(manager_feedback.scores) 양쪽 다 이 함수로 집계해서 같은 방식으로
 // 비교 가능하게 한다.
@@ -29,12 +23,24 @@ function averageByLabel(scoreObjects) {
   return Object.fromEntries(Object.keys(totals).map((label) => [label, Math.round(totals[label] / counts[label])]));
 }
 
-// 전체 응답의 scores를 가치명 기준으로 평균 내어 낮은 순으로 정렬한다 (면담 때
-// 짚어줄 상대적 약점 후보).
+// 전체 응답의 scores를 가치명 기준으로 평균+측정 횟수를 함께 내어 낮은 순으로
+// 정렬한다(면담 때 짚어줄 상대적 약점 후보). 예전엔 이와 별개로 "주차별 평균"을
+// 하나의 선 그래프로 이어 보여줬는데, 매주 서로 다른 가치를 측정하는 구조(같은 주에
+// 3~4개 값이 섞여 나옴)라 그 평균선은 통계적으로 의미가 없었다(외부 리뷰로 지적 —
+// 예: 1주차 "끈기" 60점과 2주차 "목표의식" 80점을 이어서 "20점 성장"이라고 읽을 수
+// 없음). 그래프를 없애고, 그 대신 가치별 평균·측정 횟수로 대체했다 — 표본이 적은
+// 값(count가 작음)은 그 자체로 "아직 판단 근거가 부족하다"는 신호가 된다.
 function computeWeakAreas(responses) {
-  const byLabel = averageByLabel(responses.map((r) => r.scores));
-  return Object.entries(byLabel)
-    .map(([label, avg]) => ({ label, avg }))
+  const totals = {};
+  const counts = {};
+  responses.forEach((r) => {
+    Object.entries(r.scores ?? {}).forEach(([label, score]) => {
+      totals[label] = (totals[label] ?? 0) + score;
+      counts[label] = (counts[label] ?? 0) + 1;
+    });
+  });
+  return Object.keys(totals)
+    .map((label) => ({ label, avg: Math.round(totals[label] / counts[label]), count: counts[label] }))
     .sort((a, b) => a.avg - b.avg);
 }
 
@@ -147,11 +153,6 @@ export default function ResponseDetailPage() {
   if (error) return <div className="error">{error}</div>;
   if (!responses) return <div className="muted">불러오는 중...</div>;
 
-  const trendPoints = responses
-    .map((r) => ({ week: r.missionId, avg: avgOfScores(r.scores) }))
-    .filter((p) => p.avg !== null)
-    .sort((a, b) => a.week - b.week);
-
   const showMid = currentWeek >= 13;
   const showFinal = currentWeek >= 26;
 
@@ -181,7 +182,6 @@ export default function ResponseDetailPage() {
           reviewType="mid"
           weakAreas={computeWeakAreas(responses.filter((r) => r.missionId <= 12))}
           missedWeeks={computeMissedWeeks(responses, 12)}
-          trendPoints={trendPoints.filter((p) => p.week <= 12)}
           narrativeText={reviews.mid}
           initialNotes={interviews.mid}
           onSaveNotes={(notes) => saveInterviewNotes("mid", notes)}
@@ -193,7 +193,6 @@ export default function ResponseDetailPage() {
           reviewType="final"
           weakAreas={computeWeakAreas(responses.filter((r) => r.missionId <= 25))}
           missedWeeks={computeMissedWeeks(responses, 25)}
-          trendPoints={trendPoints.filter((p) => p.week <= 25)}
           narrativeText={reviews.final}
           initialNotes={interviews.final}
           onSaveNotes={(notes) => saveInterviewNotes("final", notes)}

@@ -14,6 +14,7 @@
     "gen:dummy-corpus": "node --env-file=.env.local scripts/generateDummyCorpus.js",
     "loadtest": "node --env-file=.env.local scripts/runLoadTest.js",
     "qa:scores": "node --env-file=.env.local scripts/qaScores.js",
+    "qa:injection": "node --env-file=.env.local scripts/qaInjection.js",
     "demo:walkthrough": "node --env-file=.env.local scripts/walkDemoTimeline.js",
     "cleanup:test-accounts": "node --env-file=.env.local scripts/cleanupTestAccounts.js"
   },

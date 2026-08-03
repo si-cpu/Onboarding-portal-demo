@@ -1,10 +1,9 @@
 import { useState } from "react";
 import ScoreSlider from "./ScoreSlider";
-import ScoreTrend from "./ScoreTrend";
 
 const TITLE = { mid: "3개월차 면담 자료", final: "6개월차 면담 자료" };
 
-export default function ReviewPanel({ reviewType, weakAreas, missedWeeks, trendPoints, narrativeText, initialNotes, onSaveNotes }) {
+export default function ReviewPanel({ reviewType, weakAreas, missedWeeks, narrativeText, initialNotes, onSaveNotes }) {
   const [notes, setNotes] = useState(initialNotes ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -28,18 +27,13 @@ export default function ReviewPanel({ reviewType, weakAreas, missedWeeks, trendP
         </div>
       )}
 
-      {trendPoints.length >= 2 && (
-        <div style={{ marginBottom: 14 }}>
-          <div className="muted" style={{ marginBottom: 4 }}>주차별 평균 점수 추이</div>
-          <ScoreTrend points={trendPoints} />
-        </div>
-      )}
-
       {weakAreas.length > 0 && (
         <div style={{ marginBottom: 14 }}>
-          <div className="muted" style={{ marginBottom: 6 }}>상대적으로 약한 분야 (평균 낮은 순)</div>
-          {weakAreas.slice(0, 5).map((w) => (
-            <ScoreSlider key={w.label} label={w.label} score={w.avg} />
+          <div className="muted" style={{ marginBottom: 6 }}>
+            가치별 평균 · 측정 횟수 (평균 낮은 순 — 측정 횟수가 적으면 아직 판단 근거가 부족하다는 뜻)
+          </div>
+          {weakAreas.map((w) => (
+            <ScoreSlider key={w.label} label={`${w.label} · ${w.count}회`} score={w.avg} />
           ))}
         </div>
       )}
