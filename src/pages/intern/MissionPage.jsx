@@ -70,7 +70,11 @@ export default function MissionPage() {
             key={week}
             type="button"
             className={week === viewedWeek ? "btn" : "btn btn-secondary"}
-            style={{ flexShrink: 0, padding: "6px 12px", fontSize: 13 }}
+            // .btn은 원래 폭 100%짜리 단독 액션 버튼(제출하기 등)용이라, 이 좁은 pill
+            // 네비게이션에 그대로 쓰면 버튼 하나가 컨테이너 전체 너비를 차지해버린다
+            // (flexShrink:0만으로는 못 막음 — width 자체를 인라인으로 덮어써야 함).
+            // 실제 브라우저로 확인하다가 발견: 현재 주차 버튼이 화면 밖으로 밀려나 있었음.
+            style={{ flexShrink: 0, width: "auto", marginTop: 0, padding: "6px 12px", fontSize: 13 }}
             onClick={() => setViewedWeek(week)}
           >
             {week}주차
