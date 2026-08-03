@@ -1,6 +1,27 @@
-# Project Charter v1.5
+# Project Charter v1.6
 ## 핵심가치 연계형 신규 입사자 온보딩 포털 (인터엑스 AX 채용 오디션)
 
+> **v1.5 → v1.6 변경 이력 (외부 리뷰 P0 2건 패치 — 보안·데이터 무결성)**
+> 외부 리뷰가 지적한 것 중 제출 전 필수(P0) 두 건을 즉시 패치했다. 나머지(팀장 관찰
+> 주기가 CHARTER 문구와 다름, 슬라이더 기본값 50점에 "관찰 못 함" 없음, 서로 다른
+> 가치를 뭉친 주차 평균 추이, 타임라인 6개월 게이팅 부재, Charter-코드 범위 재정리)는
+> 검토했고 전부 사실로 확인했으나 UX/설계 판단이 필요해 별도로 순서대로 처리한다.
+> 1. **`responses` Firestore 규칙의 client SDK 우회 차단**: 예전엔 신입 본인 uid와
+>    문서의 userId가 같으면 client SDK로 `responses`를 직접 create/read할 수 있었다.
+>    README는 "API 레이어에서 이중 필터링"이라고 주장했지만, 그건 프론트가 그렇게
+>    안 짜서 그런 것뿐 규칙 자체가 막고 있던 게 아니었다 — devtools에서 idToken만
+>    있으면 AI 채점(`api/score.js`)을 건너뛰고 임의 `scores`로 문서를 직접 만들거나,
+>    본인 문서를 직접 read해서 비공개 원칙인 scores를 그대로 훔쳐볼 수 있었다.
+>    `allow create: if false`, `allow read: if role() in ['manager','hr']`로 막고
+>    배포 후 실제 devtools 시나리오(직접 write/read 둘 다 permission-denied)로
+>    막힌 것과, Admin SDK를 쓰는 정상 채점 플로우는 그대로 동작하는 것 둘 다 실측 확인.
+> 2. **Claude가 반환한 `scores`에 대한 스키마 검증 추가**: 지금까지 `JSON.parse`
+>    결과를 검증 없이 그대로 Firestore에 저장했다 — 허용된 가치명과 정확히 일치하는지,
+>    값이 0~100 범위의 유효한 숫자인지 아무것도 확인하지 않았다. `validateScores()`를
+>    추가해 키 집합 불일치·엉뚱한 키 주입·비숫자 값은 거부(500)하고, 범위를 벗어난
+>    숫자는 0~100으로 클램프한다. 답변 텍스트를 통한 프롬프트 인젝션이 scores 구조
+>    자체를 조작하려 해도 이 화이트리스트에서 걸러진다.
+>
 > **v1.4 → v1.5 변경 이력 (실브라우저 검증 + QA 중 실측 발견한 버그 3건 패치)**
 > v1.4 패치를 실제로 로그인해서(intern/manager/hr 3개 역할) 눈으로 확인하고, 리스크2(AI
 > 채점 신뢰성) 보강을 시도하는 과정에서 QA를 다시 돌리다가 추가로 발견·수정한 것들이다.
@@ -364,6 +385,18 @@ LLM은 편향, 프롬프트 민감도, 불완전한 재현성의 한계를 갖�
 **대응 방안 (패치 완료)**: `score.js`에 `comprehensiveReview.js`와 동일한 패턴으로 `getCurrentWeek(joinedAt)`을 불러와 `missionId === currentWeek`를 서버에서 검증(불일치 시 403)하고, 이미 해당 `missionId`에 대한 응답이 존재하면 409("이번 주 미션에는 이미 답변을 제출했습니다.")를 반환하도록 체크를 추가했다. 클라이언트(`callApi`)는 서버 `error` 메시지를 그대로 던지고 `MissionPage.jsx`가 `submitError`로 표시하므로 별도 프론트 수정 없이 바로 반영됨을 확인했다.
 
 > **v1.4 추가 패치**: 위 409 체크는 트랜잭션 밖에서 한 번만 수행돼서, 동시 요청이 둘 다 통과한 뒤 트랜잭션 재시도 경로에서 두 번째 문서(round=2)가 만들어지는 잔여 레이스가 남아있었다(코드 리뷰로 발견). 트랜잭션 안에서 "이미 제출됐는지"를 다시 검증해 실패 시 즉시 abort하도록 이중화해 완전히 닫았다(v1.3→v1.4 변경 이력 3번).
+
+---
+
+#### 리스크 10 — `responses` Firestore 규칙이 신입에게 client SDK 직접 create/read를 허용 (외부 리뷰로 신규 발견)
+
+**상태**: ✅ 해소 · **심각도**: 높음(패치 전) → 낮음(패치 후)
+
+리스크9이 "서버가 매주를 강제하지 않으면 왜곡 방지 논리가 안 선다"는 문제였다면, 이건 그보다 근본적이다 — `firestore.rules`의 `responses` 컬렉션이 `allow create: if request.auth.uid == request.resource.data.userId`, `allow read: if ... || uid == userId`로 되어 있어서, 신입이 브라우저 devtools에서 본인 Firebase idToken으로 Firestore client SDK를 직접 호출하면 (1) `api/score.js`(AI 채점)를 완전히 건너뛰고 `scores: {아무값: 100}` 같은 문서를 직접 만들 수 있었고, (2) 점수 비공개 원칙으로 절대 안 보여준다던 `scores` 필드를 본인 문서 직접 read로 그대로 훔쳐볼 수 있었다. README는 "API 레이어에서 이중 필터링"이라 주장했지만 그건 프론트가 그렇게 안 짜서 그런 것뿐, 규칙 자체가 막고 있던 게 아니었다 — "프론트에서 안 쓴다"는 보안 통제가 아니다.
+
+**대응 방안 (패치 완료)**: `allow create: if false`(생성은 Admin SDK인 `api/score.js`만), `allow read: if role() in ['manager','hr']`(신입은 client SDK로 아예 못 읽음)로 강화. `firebase deploy --only firestore:rules`로 배포 후, 실제 devtools 시나리오를 재현하는 스크립트로 (a) 직접 write 시도 → `permission-denied`, (b) 직접 read 시도 → `permission-denied`, (c) 정상 플로우(`api/score.js` 경유)는 그대로 200 성공 셋 다 실측 확인.
+
+같이 발견된 관련 구멍(리스크10-1): `score.js`가 Claude의 `scores` JSON을 검증 없이 그대로 저장하고 있었다 — 허용된 가치명 일치 여부, 값이 0~100 범위 숫자인지 확인이 전혀 없었다. `validateScores()`를 추가해 키 집합 불일치·값 타입 오류는 거부(500), 범위 초과는 0~100으로 클램프하도록 패치.
 
 ---
 

@@ -76,9 +76,11 @@
 
 ## ⚠️ 알아두어야 할 구조적 한계
 
-- **Firestore 보안규칙은 필드 단위 제한이 불가능하다.** `responses` 문서를 신입이 직접 read하면
-  scores 필드까지 같이 내려온다. 그래서 신입용 화면은 Firestore SDK로 `responses`를 직접 조회하지 않고
-  반드시 `/api` 서버리스 함수(checkCache 등)를 경유해 안전한 필드만 받는다.
+- **Firestore 보안규칙은 필드 단위 제한이 불가능하다.** `responses` 문서를 read하면 scores 필드까지
+  같이 내려온다. 예전엔 "신입 본인 문서는 read 허용, 프론트가 안 쓸 뿐"이었는데, 이건 devtools로
+  누구나 우회할 수 있는 가짜 통제였다(외부 리뷰로 발견). 지금은 `firestore.rules`가 `responses`의
+  client SDK `create`/`read` 자체를 신입에게 전부 막는다 — 생성은 Admin SDK(`api/score.js`)만,
+  조회는 반드시 `/api` 서버리스 함수(checkCache 등)만 가능하다.
 - **AI 채점(`temperature: 0`)은 재현성을 최대한 확보했지만 100% 결정적이지 않을 수 있다.**
   실제 재현성은 답변 해시 기반 캐시(동일 답변 → 저장된 결과 재사용)로 보장한다.
 - React 에러 바운더리, API 요청 빈도 제한(rate limit), 계정 셀프서비스(비밀번호 재설정 등)는 범위 밖 —

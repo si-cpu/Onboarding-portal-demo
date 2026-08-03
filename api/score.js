@@ -30,6 +30,27 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // 이어지는 걸 막기 위한 방어선이다.
 const MAX_ANSWER_LENGTH = 500;
 
+// Claude가 반환한 scores를 그대로 믿고 저장하면 안 된다 — 이 값이 대시보드 평균·
+// AI-팀장 괴리 비교·성장 추이 계산에 그대로 흘러들어가는 방어 가능 근거자료라서,
+// 허용된 가치명 집합과 정확히 일치하는지·값이 0~100 범위의 유효한 숫자인지 검증한다
+// (외부 리뷰로 발견 — 검증 없이 파싱 결과를 바로 저장하고 있었음). 답변 텍스트에
+// 섞인 프롬프트 인젝션이 scores 구조 자체를 조작하려 해도, 이 화이트리스트 검증을
+// 통과 못 하면 여기서 걸러진다.
+function validateScores(scores, expectedKeys) {
+  if (!scores || typeof scores !== "object") return null;
+  const gotKeys = Object.keys(scores);
+  if (gotKeys.length !== expectedKeys.length) return null;
+  if (!expectedKeys.every((k) => gotKeys.includes(k))) return null;
+
+  const validated = {};
+  for (const key of expectedKeys) {
+    const value = scores[key];
+    if (typeof value !== "number" || !Number.isFinite(value)) return null;
+    validated[key] = Math.max(0, Math.min(100, Math.round(value)));
+  }
+  return validated;
+}
+
 // 루브릭 설명(추상적 기준)만으로는 같은 품질의 답변도 호출마다 점수가 5~15점씩
 // 흔들리는 게 LLM 채점의 흔한 문제다. 구체적인 점수대별 예시(앵커)를 프롬프트에
 // 박아 넣어서 "이 정도면 몇 점대"라는 기준점을 고정한다 — 특정 미션에 종속되지
@@ -214,6 +235,14 @@ FEEDBACK: 위 feedback_text 작성 규칙을 따른 정성 피드백 2~3문장
       alert(requestId, "score.parse_failed", { uid, missionId, raw: raw.slice(0, 300) });
       return res.status(500).json({ error: "AI 응답 파싱 실패" });
     }
+
+    const expectedKeys = [mission.mapped.primary, ...mission.mapped.secondary];
+    const validatedScores = validateScores(parsed.scores, expectedKeys);
+    if (!validatedScores) {
+      alert(requestId, "score.invalid_scores", { uid, missionId, scores: parsed.scores, expectedKeys });
+      return res.status(500).json({ error: "AI 응답 검증 실패" });
+    }
+    parsed.scores = validatedScores;
 
     let nudgeText = null;
     try {
