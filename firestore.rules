@@ -15,15 +15,17 @@ service cloud.firestore {
       allow create, delete: if false; // 콘솔/관리자 스크립트로만
     }
 
-    // responses: 신입은 본인 답변의 feedback_text/nudge_text만 read,
-    // scores 필드는 manager/hr만 read 가능 (점수 비공개 원칙)
+    // responses: 신입은 본인 답변이라도 create/read를 client SDK로 직접 못 한다.
+    // 예전엔 request.auth.uid == userId면 create/read를 허용했는데, "프론트가 그렇게
+    // 안 짜서 안 쓴다"는 건 보안 통제가 아니다 — devtools에서 idToken만 있으면 누구나
+    // AI 채점(api/score.js)을 건너뛰고 임의 scores로 직접 문서를 만들 수 있었고,
+    // 본인 문서를 직접 read하면 비공개 원칙인 scores도 그대로 노출됐다(외부 리뷰로
+    // 발견). 생성은 반드시 Admin SDK(api/score.js)만, 조회는 반드시 /api/checkCache
+    // 등 서버리스 함수만 거치도록 강제한다 — Admin SDK는 이 규칙 자체를 우회하므로
+    // 정상 플로우는 전혀 영향받지 않는다.
     match /responses/{responseId} {
-      allow create: if request.auth.uid == request.resource.data.userId;
-      allow read: if role() in ['manager', 'hr']
-                  || (request.auth.uid == resource.data.userId); 
-                  // 주의: 클라이언트 쿼리에서 scores 필드를 제외하고 select 하거나,
-                  // Cloud Function을 경유해 feedback_text만 내려주는 방식을 권장.
-                  // (Firestore 보안규칙은 필드 단위 제한이 어려우므로 API 레이어에서 이중 필터링)
+      allow create: if false;
+      allow read: if role() in ['manager', 'hr'];
       allow update: if role() == 'hr' && request.resource.data.diff(resource.data)
                       .affectedKeys().hasOnly(['hr_comment']); // 점수는 불변, 코멘트만 추가 가능
     }
