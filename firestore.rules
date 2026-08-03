@@ -7,9 +7,12 @@ service cloud.firestore {
     }
 
     // users: 본인 문서만 read, role 필드는 본인이 수정 불가(관리자만 설정)
+    // managerId(담당 매니저 배정)만 HR이 화면에서 직접 갱신할 수 있다 — 그 외 필드는
+    // 여전히 콘솔/관리자 스크립트 전용(계정 생성/role 변경 등).
     match /users/{uid} {
       allow read: if request.auth.uid == uid || role() in ['manager', 'hr'];
-      allow write: if false; // 콘솔/관리자 스크립트로만 세팅
+      allow update: if role() == 'hr' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['managerId']);
+      allow create, delete: if false; // 콘솔/관리자 스크립트로만
     }
 
     // responses: 신입은 본인 답변의 feedback_text/nudge_text만 read,
@@ -25,9 +28,25 @@ service cloud.firestore {
                       .affectedKeys().hasOnly(['hr_comment']); // 점수는 불변, 코멘트만 추가 가능
     }
 
-    // manager_feedback: 신입은 절대 read 불가 (평가자 익명성 원칙)
+    // manager_feedback: 신입은 절대 read 불가 (평가자 익명성 원칙). 매니저는 그 중에서도
+    // users/{internId}.managerId로 본인에게 배정된 신입에 대해서만 read/write 가능
+    // (배정 개념이 없던 이전 버전에서는 아무 매니저나 아무 신입에 값을 저장할 수 있어,
+    // 담당자가 아닌 다른 매니저가 저장하면 기존 관찰이 경고 없이 덮어써지는 문제가
+    // 있었다 — 코드 리뷰로 발견, HR 배정 화면 도입과 함께 스코핑).
     match /manager_feedback/{feedbackId} {
-      allow read, write: if role() in ['manager', 'hr'];
+      // read는 세 갈래: HR 전체 열람 / 배정된 매니저가 특정 신입 문서를 직접 get()하는
+      // 경우(ResponseDetailPage 등) / 매니저 본인이 "내가 남긴 관찰" 목록을 managerId로
+      // 쿼리하는 경우(MetaFeedbackPage.loadEntries). 마지막 조건(resource.data.managerId
+      // == request.auth.uid)이 쿼리의 where("managerId","==",uid) 필터와 정확히 일치해야
+      // Firestore가 list 쿼리를 허용한다 — get() 기반 조건만으로는 쿼리 자체가
+      // "증명 불가"로 거부된다(단일 문서 get()에는 이 제약이 없음).
+      allow read: if role() == 'hr'
+                  || (role() == 'manager'
+                      && get(/databases/$(database)/documents/users/$(resource.data.internId)).data.managerId == request.auth.uid)
+                  || resource.data.managerId == request.auth.uid;
+      allow write: if role() == 'hr'
+                  || (role() == 'manager'
+                      && get(/databases/$(database)/documents/users/$(request.resource.data.internId)).data.managerId == request.auth.uid);
     }
 
     // missions: 공개 질문 텍스트만 신입도 read, mapped 필드는 애초에

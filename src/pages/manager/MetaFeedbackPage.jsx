@@ -39,7 +39,13 @@ export default function MetaFeedbackPage() {
   useEffect(() => {
     (async () => {
       try {
-        const usersSnap = await getDocs(query(collection(db, "users"), where("role", "==", "intern")));
+        // HR 배정 화면(AssignmentsPage)에서 정한 managerId로 담당 신입만 보여준다 —
+        // 배정 개념이 없을 때는 매니저 role이면 아무 신입에나 관찰을 남길 수 있었고,
+        // 담당자가 아닌 다른 매니저가 저장하면 기존 값이 조용히 덮어써지는 문제가
+        // 있었다(firestore.rules도 같은 기준으로 배정된 매니저만 쓰도록 스코핑함).
+        const usersSnap = await getDocs(
+          query(collection(db, "users"), where("role", "==", "intern"), where("managerId", "==", auth.currentUser.uid))
+        );
         setInterns(usersSnap.docs.map((d) => ({ uid: d.id, ...d.data() })));
         await loadEntries();
       } catch (e) {
@@ -96,6 +102,12 @@ export default function MetaFeedbackPage() {
         <div className="muted" style={{ marginBottom: 12, fontSize: 13 }}>
           매주 입력하는 게 아니라, 3개월차·6개월차 심사 직전에 한 번씩만 남기면 됩니다.
         </div>
+
+        {interns.length === 0 && (
+          <div className="muted" style={{ marginBottom: 12, fontSize: 13 }}>
+            담당으로 배정된 신입이 없습니다. 인사팀에 배정을 요청해 주세요.
+          </div>
+        )}
 
         <select
           className="input"

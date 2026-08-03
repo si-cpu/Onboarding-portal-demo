@@ -7,3 +7,4 @@ dist
 *firebase-adminsdk*.json
 *.pem
 *.key
+scripts/dummyCorpus.json

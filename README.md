@@ -27,6 +27,8 @@
    (firebase-tools 설치 필요: `npm install -g firebase-tools` → `firebase login`)
 7. **테스트 계정 생성**: `npm run seed:role-accounts` — `intern@test.local` / `manager@test.local` /
    `hr@test.local` 3개 계정을 role까지 세팅해서 자동 생성 (비밀번호는 스크립트 출력 참고)
+   ⚠️ 생성 직후엔 신입-매니저 배정이 안 돼 있어 매니저 화면에 신입이 안 보인다 — `hr@test.local`로
+   로그인 후 `/hr/assignments`에서 `intern@test.local`을 `manager@test.local`에게 배정할 것
 8. **`missions` 컬렉션 시딩**: `npm run seed:missions` — `api/missionBank.js`의 26개 미션을
    `id`/`type`/`question`만 공개 컬렉션에 자동으로 넣는다 (mapped 값은 절대 여기 안 들어감 — 미션 블라인드 원칙)
 9. **로컬 실행**: `npm run dev`(프론트만) 또는 `npm run dev:api`(Vercel dev 포함, `/api/*` 필요할 때는 반드시
@@ -48,7 +50,14 @@
 - ✅ **3개월(13주)/6개월(26주) 종합 해석** — 신입: 그동안 답변을 모은 AI 성장 서사(점수/가치명 비공개,
   캐싱). 인사팀: 같은 서사 + 주차별 점수 추이 그래프 + 약점 분야 순위 + 미제출 주차 목록 + 면담 결과 기록
   (신입에게는 비공개, `interviews` 컬렉션)
-- ✅ HR 대시보드(N+1 쿼리 없이 2번으로 고정, `hr_comment`만 수정 가능) / 매니저 비공개 피드백(신입 read 불가)
+- ✅ HR 대시보드(N+1 쿼리 없이 2번으로 고정, `hr_comment`만 수정 가능, 서술형/관찰형 점수를
+  신뢰도 그룹별로 분리 표시) / 매니저 비공개 피드백(신입 read 불가)
+- ✅ **HR 신입-매니저 배정 화면**(`/hr/assignments`, `users.managerId`) — 매니저는 본인에게
+  배정된 신입만 보고 관찰을 남길 수 있음(`firestore.rules`도 배정 관계로 스코핑)
+- ✅ 주차 계산(`getCurrentWeek`)을 실행 환경 타임존과 무관하게 KST 고정 오프셋으로 계산 —
+  서버(Vercel, 기본 UTC)와 클라이언트(브라우저, KST)가 월요일 경계에서 다른 주차를
+  계산하던 문제 해소
+- ✅ `/api/score` 동시 제출 레이스 완전 차단(트랜잭션 내부에서 중복제출 재검증)
 - ✅ 구조화 로그(`log`/`alert` 분리, requestId로 한 요청 추적)
 - ✅ 시딩·부하테스트·QA 스크립트(`scripts/`) — 더미 계정/미션, 품질별 코퍼스, 동시 배치 호출, 앵커 검증
 - ⚠️ 모델 교체는 검토만 하고 보류 — 여전히 Claude(`claude-sonnet-4-6`) 사용 (의도적 결정)

@@ -127,6 +127,13 @@ export default async function handler(req, res) {
     // 이게 없으면 같은 missionId로 여러 번 다르게 제출해 round가 계속 쌓일 수 있고,
     // comprehensiveReview.js가 missionId 중복 제거 없이 그대로 훑기 때문에 중복
     // 데이터가 종합 해석에 섞여 들어간다.
+    //
+    // 이 체크는 "빠른 경로"일 뿐이다 — 여기서 통과해도 아래 트랜잭션 안에서 다시
+    // 검증한다. 두 요청이 거의 동시에 도착하면(더블클릭, 네트워크 재시도, 다중 탭)
+    // 둘 다 이 체크를 통과할 수 있고, 이 체크만으로는 라운드 계산 트랜잭션의 재시도
+    // 경로에서 두 번째 문서가 만들어지는 걸 못 막는다(코드 리뷰로 발견) — 진짜
+    // 직렬화는 트랜잭션 안의 재검증이 담당하고, 이 체크는 그 전에 대부분의 경우
+    // Claude 호출 비용을 아끼기 위한 최적화다.
     const existingSnap = await responses
       .where("userId", "==", uid)
       .where("missionId", "==", missionId)
@@ -203,32 +210,50 @@ feedback_text 작성 규칙:
       nudgeText = null;
     }
 
-    // round 계산(개수 세기)과 문서 생성을 트랜잭션으로 묶는다 — 같은 유저가 같은
-    // 미션에 대해 거의 동시에 두 번 요청하면(네트워크 재시도, 여러 탭 등) 트랜잭션
-    // 없이는 두 요청 모두 "이전 0개"를 보고 round=1로 중복 생성될 수 있다.
+    // round 계산(개수 세기), "이미 제출됐는지" 재검증, 문서 생성을 하나의 트랜잭션으로
+    // 묶는다. 위의 existingSnap 체크만으로는 두 요청이 동시에 그 체크를 통과한 뒤
+    // 각자 트랜잭션에 들어오는 경우를 못 막는다 — Firestore 트랜잭션은 읽은 쿼리
+    // 결과가 커밋 전에 바뀌면 자동으로 재시도하는데, 재시도 시점엔 상대방이 이미
+    // 써놓은 문서가 priorSnap에 보이므로 "먼저 커밋한 쪽만 성공"이 아니라 여기서
+    // ALREADY_SUBMITTED로 명시적으로 막아야 재시도한 쪽이 round=2로 중복 문서를
+    // 만드는 걸 원천 차단할 수 있다(코드 리뷰로 발견 — 실질적으로 같은 유저·같은
+    // missionId에 대한 제출을 직렬화하는 역할).
     const docRef = adminDb.collection("responses").doc();
-    const round = await adminDb.runTransaction(async (tx) => {
-      const priorSnap = await tx.get(
-        responses.where("userId", "==", uid).where("missionId", "==", missionId)
-      );
-      const nextRound = priorSnap.size + 1;
-      tx.set(docRef, {
-        userId: uid,
-        missionId,
-        round: nextRound,
-        answerText,
-        answerHash,
-        scores: parsed.scores,
-        evidence_density: parsed.evidence_density ?? null,
-        feedback_text: parsed.feedback_text,
-        nudge_text: nudgeText,
-        createdAt: FieldValue.serverTimestamp(),
-        requestId,
-        receivedAt: new Date(receivedAt).toISOString(),
-        durationMs: Date.now() - receivedAt,
+    let round;
+    try {
+      round = await adminDb.runTransaction(async (tx) => {
+        const priorSnap = await tx.get(
+          responses.where("userId", "==", uid).where("missionId", "==", missionId)
+        );
+        if (priorSnap.size > 0) {
+          const err = new Error("already submitted (race)");
+          err.code = "ALREADY_SUBMITTED";
+          throw err;
+        }
+        tx.set(docRef, {
+          userId: uid,
+          missionId,
+          round: 1,
+          answerText,
+          answerHash,
+          scores: parsed.scores,
+          evidence_density: parsed.evidence_density ?? null,
+          feedback_text: parsed.feedback_text,
+          nudge_text: nudgeText,
+          createdAt: FieldValue.serverTimestamp(),
+          requestId,
+          receivedAt: new Date(receivedAt).toISOString(),
+          durationMs: Date.now() - receivedAt,
+        });
+        return 1;
       });
-      return nextRound;
-    });
+    } catch (e) {
+      if (e.code === "ALREADY_SUBMITTED") {
+        log(requestId, "score.already_submitted_race", { uid, missionId });
+        return res.status(409).json({ error: "이번 주 미션에는 이미 답변을 제출했습니다." });
+      }
+      throw e;
+    }
 
     log(requestId, "score.stored", { uid, missionId, docId: docRef.id, round, totalMs: Date.now() - receivedAt });
 
