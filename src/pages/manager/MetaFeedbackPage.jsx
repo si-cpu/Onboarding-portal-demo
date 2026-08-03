@@ -39,7 +39,13 @@ export default function MetaFeedbackPage() {
   useEffect(() => {
     (async () => {
       try {
-        const usersSnap = await getDocs(query(collection(db, "users"), where("role", "==", "intern")));
+        // HR 배정 화면(AssignmentsPage)에서 정한 managerId로 담당 신입만 보여준다 —
+        // 배정 개념이 없을 때는 매니저 role이면 아무 신입에나 관찰을 남길 수 있었고,
+        // 담당자가 아닌 다른 매니저가 저장하면 기존 값이 조용히 덮어써지는 문제가
+        // 있었다(firestore.rules도 같은 기준으로 배정된 매니저만 쓰도록 스코핑함).
+        const usersSnap = await getDocs(
+          query(collection(db, "users"), where("role", "==", "intern"), where("managerId", "==", auth.currentUser.uid))
+        );
         setInterns(usersSnap.docs.map((d) => ({ uid: d.id, ...d.data() })));
         await loadEntries();
       } catch (e) {
@@ -97,60 +103,68 @@ export default function MetaFeedbackPage() {
           매주 입력하는 게 아니라, 3개월차·6개월차 심사 직전에 한 번씩만 남기면 됩니다.
         </div>
 
-        <select
-          className="input"
-          style={{ marginBottom: 10 }}
-          value={selectedIntern}
-          onChange={(e) => setSelectedIntern(e.target.value)}
-        >
-          <option value="">신입 선택</option>
-          {interns.map((i) => (
-            <option key={i.uid} value={i.uid}>
-              {i.email ?? i.uid}
-            </option>
-          ))}
-        </select>
-
-        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-          {REVIEW_TYPES.map((rt) => (
-            <button
-              key={rt.value}
-              type="button"
-              className={reviewType === rt.value ? "btn" : "btn btn-secondary"}
-              onClick={() => setReviewType(rt.value)}
-            >
-              {rt.label}
-            </button>
-          ))}
-        </div>
-
-        {OBSERVED_VALUES.map((value) => (
-          <div key={value} style={{ marginBottom: 12 }}>
-            <div className="muted" style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-              <span>{value}</span>
-              <span>{scores[value]}</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={scores[value]}
-              onChange={(e) => setScores((prev) => ({ ...prev, [value]: Number(e.target.value) }))}
-              style={{ width: "100%" }}
-            />
+        {interns.length === 0 ? (
+          <div className="muted" style={{ fontSize: 13 }}>
+            담당으로 배정된 신입이 없습니다. 인사팀에 배정을 요청해 주세요.
           </div>
-        ))}
+        ) : (
+          <>
+            <select
+              className="input"
+              style={{ marginBottom: 10 }}
+              value={selectedIntern}
+              onChange={(e) => setSelectedIntern(e.target.value)}
+            >
+              <option value="">신입 선택</option>
+              {interns.map((i) => (
+                <option key={i.uid} value={i.uid}>
+                  {i.email ?? i.uid}
+                </option>
+              ))}
+            </select>
 
-        <textarea
-          className="textarea"
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          placeholder="(선택) 맥락 코멘트 — 이 신입에게는 절대 노출되지 않습니다."
-        />
-        <button className="btn" onClick={submit} disabled={saving || !selectedIntern}>
-          {saving ? "저장 중..." : `${REVIEW_TYPES.find((rt) => rt.value === reviewType).label} 저장`}
-        </button>
-        {error && <div className="error">{error}</div>}
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              {REVIEW_TYPES.map((rt) => (
+                <button
+                  key={rt.value}
+                  type="button"
+                  className={reviewType === rt.value ? "btn" : "btn btn-secondary"}
+                  onClick={() => setReviewType(rt.value)}
+                >
+                  {rt.label}
+                </button>
+              ))}
+            </div>
+
+            {OBSERVED_VALUES.map((value) => (
+              <div key={value} style={{ marginBottom: 12 }}>
+                <div className="muted" style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <span>{value}</span>
+                  <span>{scores[value]}</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={scores[value]}
+                  onChange={(e) => setScores((prev) => ({ ...prev, [value]: Number(e.target.value) }))}
+                  style={{ width: "100%" }}
+                />
+              </div>
+            ))}
+
+            <textarea
+              className="textarea"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="(선택) 맥락 코멘트 — 이 신입에게는 절대 노출되지 않습니다."
+            />
+            <button className="btn" onClick={submit} disabled={saving || !selectedIntern}>
+              {saving ? "저장 중..." : `${REVIEW_TYPES.find((rt) => rt.value === reviewType).label} 저장`}
+            </button>
+            {error && <div className="error">{error}</div>}
+          </>
+        )}
       </div>
 
       <div className="card card-wide">
@@ -159,7 +173,9 @@ export default function MetaFeedbackPage() {
         {entries.map((e) => (
           <div className="row" key={e.id} style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
             <span>
-              {e.internId} · {REVIEW_TYPES.find((rt) => rt.value === e.reviewType)?.label ?? e.reviewType}
+              {/* raw uid 대신 이메일로 표시 — interns 목록에 없으면(배정 해제 등) uid로 폴백 */}
+              {interns.find((i) => i.uid === e.internId)?.email ?? e.internId} ·{" "}
+              {REVIEW_TYPES.find((rt) => rt.value === e.reviewType)?.label ?? e.reviewType}
             </span>
             {e.scores && (
               <span className="muted" style={{ fontSize: 12 }}>

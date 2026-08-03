@@ -6,6 +6,7 @@ import FeedbackPage from "./pages/intern/FeedbackPage";
 import TimelinePage from "./pages/intern/TimelinePage";
 import DashboardPage from "./pages/hr/DashboardPage";
 import ResponseDetailPage from "./pages/hr/ResponseDetailPage";
+import AssignmentsPage from "./pages/hr/AssignmentsPage";
 import MetaFeedbackPage from "./pages/manager/MetaFeedbackPage";
 
 const HOME_BY_ROLE = {
@@ -54,6 +55,7 @@ export default function AppRoutes() {
         path="/hr/responses/:internId"
         element={<RequireRole role="hr"><ResponseDetailPage /></RequireRole>}
       />
+      <Route path="/hr/assignments" element={<RequireRole role="hr"><AssignmentsPage /></RequireRole>} />
 
       <Route path="/manager" element={<RequireRole role="manager"><MetaFeedbackPage /></RequireRole>} />
 

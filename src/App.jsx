@@ -11,7 +11,10 @@ const NAV_BY_ROLE = {
     { to: "/intern/feedback", label: "피드백 히스토리" },
     { to: "/intern/timeline", label: "내 타임라인" },
   ],
-  hr: [{ to: "/hr", label: "인사팀 뷰" }],
+  hr: [
+    { to: "/hr", label: "인사팀 뷰" },
+    { to: "/hr/assignments", label: "매니저 배정" },
+  ],
   manager: [{ to: "/manager", label: "매니저 뷰" }],
 };
 

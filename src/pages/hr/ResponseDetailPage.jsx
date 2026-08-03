@@ -6,6 +6,7 @@ import { getCurrentWeek } from "../../lib/week";
 import ScoreSlider from "../../components/ScoreSlider";
 import ReviewPanel from "../../components/ReviewPanel";
 import ObservedComparisonPanel from "../../components/ObservedComparisonPanel";
+import ScoreCaveat from "../../components/ScoreCaveat";
 
 function avgOfScores(scores) {
   const values = Object.values(scores ?? {});
@@ -78,6 +79,7 @@ function HrCommentBox({ responseDocId, initialComment }) {
 
 export default function ResponseDetailPage() {
   const { internId } = useParams();
+  const [internEmail, setInternEmail] = useState(null);
   const [responses, setResponses] = useState(null);
   const [managerFeedback, setManagerFeedback] = useState({}); // { mid: scores|null, final: scores|null }
   const [currentWeek, setCurrentWeek] = useState(1);
@@ -95,6 +97,10 @@ export default function ResponseDetailPage() {
 
         const joinedAt = userSnap.data()?.joinedAt?.toDate?.() ?? null;
         setCurrentWeek(getCurrentWeek(joinedAt));
+        // 제목에 raw uid 대신 이메일을 보여준다 — HR이 uid만 보고는 누구 페이지인지
+        // 알 수 없었다(실브라우저로 확인하다가 발견). 계정 삭제 등으로 이메일이
+        // 없을 수도 있으니 그 경우엔 uid로 폴백한다.
+        setInternEmail(userSnap.data()?.email ?? null);
         setResponses(respSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
 
         // 매니저 관찰은 3개월/6개월 시점에 한 번씩만 남기는 구조라
@@ -155,7 +161,8 @@ export default function ResponseDetailPage() {
 
   return (
     <div>
-      <div className="label">{internId}의 제출 내역 ({currentWeek}주차)</div>
+      <div className="label">{internEmail ?? internId}의 제출 내역 ({currentWeek}주차)</div>
+      <ScoreCaveat />
 
       {showMid && (
         <>

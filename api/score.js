@@ -44,6 +44,10 @@ const RUBRIC_FACTUAL = `
 - 85~95점대 예시: "화요일에 API 응답 지연이 3초까지 늘어난 걸 발견해서, 로그를 뒤져 N+1 쿼리가 원인임을
   확인했다. 캐시를 붙여 평균 300ms로 줄였고, 왜 처음부터 인덱스를 안 걸었는지 점검 리스트를 만들어
   다음 스프린트에 반영하기로 했다." (구체적 수치·행동·원인 분석·다음 계획이 모두 있음)
+- 55~65점대 예시: "이번 주엔 API 응답이 느려지는 이슈가 있어서 이것저것 확인해보다가 원인을 찾아
+  고쳤다. 다음에 비슷한 문제가 생기면 더 빨리 잡을 수 있을 것 같다." (실제 사건은 있지만 수치·구체적
+  원인·구체적 조치가 빠져있고, 다음 계획도 "더 빨리 잡겠다" 수준의 막연한 다짐에 그침 — 고점대와
+  저점대 사이에서 가장 흔들리기 쉬운 "성의는 있으나 디테일이 약한" 전형적인 답변)
 - 35~45점대 예시: "이번 주에도 여러 이슈가 있었지만 잘 대응한 것 같다. 앞으로도 꾸준히 노력하겠다."
   (수치·구체적 행동·원인 분석이 전혀 없고 질문에 실제로 답하지 않음)
 `;
@@ -58,6 +62,9 @@ const RUBRIC_EMOTIONAL = `
 - 80~90점대 예시: "금요일 오후에 세 번째로 같은 버그를 마주쳤을 때 정말 자신감이 떨어졌다. 그냥
   퇴근하고 싶었는데, 동료가 '나도 저번에 그거 이틀 걸렸다'고 한 말에 다시 붙잡고 앉았다." (감정 상태를
   회피하지 않고 구체적 순간·계기까지 서술)
+- 50~60점대 예시: "이번 주엔 일이 뜻대로 안 풀려서 좀 지쳤다. 그래도 마감은 어떻게든 맞췄다." (감정을
+  회피하진 않지만 "좀 지쳤다" 수준에서 멈추고 구체적 순간·계기 없이 곧바로 결과 이야기로 넘어감 —
+  성과 자랑으로 완전히 우회하진 않았으나 정서를 깊이 파고들지도 않은 애매한 중간 지점)
 - 30~40점대 예시: "이번 주는 힘든 일도 있었지만 전반적으로 성과가 좋아서 만족스러웠다." (질문이 묻는
   '힘 빠짐'을 실제로 다루지 않고 성과 자랑으로 우회함 — 정서 일관성 위반)
 `;
@@ -127,6 +134,13 @@ export default async function handler(req, res) {
     // 이게 없으면 같은 missionId로 여러 번 다르게 제출해 round가 계속 쌓일 수 있고,
     // comprehensiveReview.js가 missionId 중복 제거 없이 그대로 훑기 때문에 중복
     // 데이터가 종합 해석에 섞여 들어간다.
+    //
+    // 이 체크는 "빠른 경로"일 뿐이다 — 여기서 통과해도 아래 트랜잭션 안에서 다시
+    // 검증한다. 두 요청이 거의 동시에 도착하면(더블클릭, 네트워크 재시도, 다중 탭)
+    // 둘 다 이 체크를 통과할 수 있고, 이 체크만으로는 라운드 계산 트랜잭션의 재시도
+    // 경로에서 두 번째 문서가 만들어지는 걸 못 막는다(코드 리뷰로 발견) — 진짜
+    // 직렬화는 트랜잭션 안의 재검증이 담당하고, 이 체크는 그 전에 대부분의 경우
+    // Claude 호출 비용을 아끼기 위한 최적화다.
     const existingSnap = await responses
       .where("userId", "==", uid)
       .where("missionId", "==", missionId)
@@ -153,14 +167,12 @@ feedback_text 작성 규칙:
 - "~점이 인상적입니다", "~한 점이 돋보입니다" 같은 정형화된 문장 틀을 매번 반복하지 말고, 이번 답변 내용에 맞게 표현을 매번 다르게 바꿀 것
 - 점수나 가치명은 절대 언급하지 말 것
 
-다음 JSON 형식으로만 응답하라 (다른 텍스트 없이):
-{
-  "scores": { "${mission.mapped.primary}": 0-100, ${mission.mapped.secondary
+아래 형식 그대로, 정확히 3줄로만 응답하라 (다른 설명 없이):
+SCORES: {"${mission.mapped.primary}": 0-100, ${mission.mapped.secondary
       .map((v) => `"${v}": 0-100`)
-      .join(", ")} },
-  "feedback_text": "위 feedback_text 작성 규칙을 따른 정성 피드백 2~3문장",
-  "evidence_density": "high" | "medium" | "low"
-}
+      .join(", ")}}
+EVIDENCE: high 또는 medium 또는 low 중 하나만
+FEEDBACK: 위 feedback_text 작성 규칙을 따른 정성 피드백 2~3문장
 `;
 
     log(requestId, "score.claude_call_start", { uid, missionId, missionType: mission.type });
@@ -179,10 +191,25 @@ feedback_text 작성 규칙:
       outputTokens: response.usage?.output_tokens,
     });
 
-    const raw = response.content.find((b) => b.type === "text")?.text ?? "{}";
+    // feedback_text를 scores와 같은 JSON 객체 안에 문자열 필드로 넣으면, 그 안에
+    // 예시를 인용부호로 감싸 쓰는 경우(Claude가 종종 그렇게 함) 이스케이프 없이
+    // 그대로 나와 JSON.parse가 깨진다 — comprehensiveReview.js/growthNarrative.js가
+    // 겪은 것과 같은 문제를 QA 중 실측으로 재현해서 발견. scores(숫자만 있어 안전)는
+    // JSON 한 줄로 유지하되, feedback_text는 별도 마커 뒤 자유 텍스트로 분리해서
+    // 인용부호가 섞여도 파싱이 안 깨지게 한다.
+    const raw = (response.content.find((b) => b.type === "text")?.text ?? "").replace(/```[a-z]*|```/gi, "").trim();
+    const scoresMatch = raw.match(/SCORES:\s*(\{[^\n]*\})/i);
+    const evidenceMatch = raw.match(/EVIDENCE:\s*(high|medium|low)/i);
+    const feedbackMatch = raw.match(/FEEDBACK:\s*([\s\S]*)$/i);
+
     let parsed;
     try {
-      parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      if (!scoresMatch || !feedbackMatch) throw new Error("format mismatch");
+      parsed = {
+        scores: JSON.parse(scoresMatch[1]),
+        evidence_density: evidenceMatch?.[1]?.toLowerCase() ?? null,
+        feedback_text: feedbackMatch[1].trim(),
+      };
     } catch {
       alert(requestId, "score.parse_failed", { uid, missionId, raw: raw.slice(0, 300) });
       return res.status(500).json({ error: "AI 응답 파싱 실패" });
@@ -203,32 +230,50 @@ feedback_text 작성 규칙:
       nudgeText = null;
     }
 
-    // round 계산(개수 세기)과 문서 생성을 트랜잭션으로 묶는다 — 같은 유저가 같은
-    // 미션에 대해 거의 동시에 두 번 요청하면(네트워크 재시도, 여러 탭 등) 트랜잭션
-    // 없이는 두 요청 모두 "이전 0개"를 보고 round=1로 중복 생성될 수 있다.
+    // round 계산(개수 세기), "이미 제출됐는지" 재검증, 문서 생성을 하나의 트랜잭션으로
+    // 묶는다. 위의 existingSnap 체크만으로는 두 요청이 동시에 그 체크를 통과한 뒤
+    // 각자 트랜잭션에 들어오는 경우를 못 막는다 — Firestore 트랜잭션은 읽은 쿼리
+    // 결과가 커밋 전에 바뀌면 자동으로 재시도하는데, 재시도 시점엔 상대방이 이미
+    // 써놓은 문서가 priorSnap에 보이므로 "먼저 커밋한 쪽만 성공"이 아니라 여기서
+    // ALREADY_SUBMITTED로 명시적으로 막아야 재시도한 쪽이 round=2로 중복 문서를
+    // 만드는 걸 원천 차단할 수 있다(코드 리뷰로 발견 — 실질적으로 같은 유저·같은
+    // missionId에 대한 제출을 직렬화하는 역할).
     const docRef = adminDb.collection("responses").doc();
-    const round = await adminDb.runTransaction(async (tx) => {
-      const priorSnap = await tx.get(
-        responses.where("userId", "==", uid).where("missionId", "==", missionId)
-      );
-      const nextRound = priorSnap.size + 1;
-      tx.set(docRef, {
-        userId: uid,
-        missionId,
-        round: nextRound,
-        answerText,
-        answerHash,
-        scores: parsed.scores,
-        evidence_density: parsed.evidence_density ?? null,
-        feedback_text: parsed.feedback_text,
-        nudge_text: nudgeText,
-        createdAt: FieldValue.serverTimestamp(),
-        requestId,
-        receivedAt: new Date(receivedAt).toISOString(),
-        durationMs: Date.now() - receivedAt,
+    let round;
+    try {
+      round = await adminDb.runTransaction(async (tx) => {
+        const priorSnap = await tx.get(
+          responses.where("userId", "==", uid).where("missionId", "==", missionId)
+        );
+        if (priorSnap.size > 0) {
+          const err = new Error("already submitted (race)");
+          err.code = "ALREADY_SUBMITTED";
+          throw err;
+        }
+        tx.set(docRef, {
+          userId: uid,
+          missionId,
+          round: 1,
+          answerText,
+          answerHash,
+          scores: parsed.scores,
+          evidence_density: parsed.evidence_density ?? null,
+          feedback_text: parsed.feedback_text,
+          nudge_text: nudgeText,
+          createdAt: FieldValue.serverTimestamp(),
+          requestId,
+          receivedAt: new Date(receivedAt).toISOString(),
+          durationMs: Date.now() - receivedAt,
+        });
+        return 1;
       });
-      return nextRound;
-    });
+    } catch (e) {
+      if (e.code === "ALREADY_SUBMITTED") {
+        log(requestId, "score.already_submitted_race", { uid, missionId });
+        return res.status(409).json({ error: "이번 주 미션에는 이미 답변을 제출했습니다." });
+      }
+      throw e;
+    }
 
     log(requestId, "score.stored", { uid, missionId, docId: docRef.id, round, totalMs: Date.now() - receivedAt });
 
