@@ -1,8 +1,20 @@
 import { OBSERVED_VALUES } from "../lib/coreValues";
 
-// AI-팀장 관찰 평균 점수 차이가 이 이상이면 "자기서술이 실제 관찰보다 포장됐을
-// 가능성" 신호로 표시한다(임의 기준값 — 발표 전 실제 데이터로 조정 가능).
+// AI-팀장 관찰 평균 점수 차이가 이 이상이면 방향별로 다른 신호로 표시한다
+// (임의 기준값 — 발표 전 실제 데이터로 조정 가능).
 const GAP_FLAG_THRESHOLD = 20;
+
+// 괴리는 방향에 따라 의미가 다르다 — 예전엔 Math.abs(gap)로 크기만 보고 어느
+// 방향이든 같은 "포장 가능성" 문구를 붙였는데, 그건 AI가 높을 때만 맞는 해석이다
+// (외부 리뷰로 지적). AI가 더 높으면 자기서술이 관찰보다 부풀려졌을 가능성이지만,
+// 팀장이 더 높으면 반대로 "AI가 그 답변만 보고는 과소평가했거나, 답변에 근거가
+// 충분히 드러나지 않았을 가능성"이다 — 같은 신호가 아니다.
+function interpretGap(gap) {
+  if (gap == null || Math.abs(gap) < GAP_FLAG_THRESHOLD) return null;
+  return gap > 0
+    ? { color: "var(--danger)", text: `⚠️ 괴리 +${gap} · 자기서술 포장 가능성` }
+    : { color: "var(--accent)", text: `⚠️ 괴리 ${gap} · AI 과소평가 또는 답변 근거 부족 가능성` };
+}
 
 // 관찰형 7개 값에 대해 AI 자기서술 채점 평균과 팀장 관찰(그 시점에 한 번 남긴
 // 슬라이더 값)을 나란히 비교한다. mid/final 리뷰 블록 안에서 그 시점 범위의
@@ -20,12 +32,13 @@ export default function ObservedComparisonPanel({ title, subtitle, aiAveragesByL
     <div className="card card-wide">
       <div className="label">{title}</div>
       <div className="muted" style={{ marginBottom: 10, fontSize: 13 }}>
-        괴리가 크면(팀장 관찰이 AI보다 뚜렷이 낮음) 자기서술 답변이 실제 관찰보다 포장됐을 가능성 신호
+        AI가 뚜렷이 높으면 자기서술이 실제 관찰보다 포장됐을 가능성, 팀장이 뚜렷이 높으면
+        AI가 과소평가했거나 답변에 근거가 충분히 드러나지 않았을 가능성 신호
         {subtitle && <> · {subtitle}</>}
       </div>
       {rows.map(({ label, ai, manager }) => {
         const gap = ai != null && manager != null ? ai - manager : null;
-        const flagged = gap != null && Math.abs(gap) >= GAP_FLAG_THRESHOLD;
+        const flag = interpretGap(gap);
         return (
           <div
             key={label}
@@ -40,12 +53,7 @@ export default function ObservedComparisonPanel({ title, subtitle, aiAveragesByL
             <span>{label}</span>
             <span>
               AI {ai ?? "–"} · 팀장 {manager ?? "–"}
-              {flagged && (
-                <span style={{ color: "var(--danger)", marginLeft: 8 }}>
-                  ⚠️ 괴리 {gap > 0 ? "+" : ""}
-                  {gap}
-                </span>
-              )}
+              {flag && <span style={{ color: flag.color, marginLeft: 8 }}>{flag.text}</span>}
             </span>
           </div>
         );
