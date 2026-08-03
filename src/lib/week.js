@@ -3,6 +3,13 @@ export const TOTAL_WEEKS = 26;
 export const MID_REVIEW_WEEK = 13; // 3개월차
 export const FINAL_REVIEW_WEEK = 26; // 6개월차
 
+// 팀장 관찰 체크인 주차 — CHARTER 문서의 "주1회 or 월1회" 취지를 26주(6개월) 동안
+// 약 월 1회, 6번으로 구현한다. MID_REVIEW_WEEK/FINAL_REVIEW_WEEK(심사 시점, AI 종합
+// 해석이 담당)과는 다른 축이다 — 팀장 관찰은 심사 시점에만 몰아서 남기면 "관계가
+// 끝나가는 시점의 총평"과 똑같이 왜곡 위험이 커지므로(설계원칙 4·6번과 같은 논리),
+// 평상시 여러 시점에 누적되게 한다(외부 리뷰로 발견 — 예전엔 mid/final 딱 2번뿐이었음).
+export const MANAGER_CHECKPOINT_WEEKS = [4, 8, 12, 16, 20, 25];
+
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 // 월요일 00:00(KST)을 그 주의 시작으로 본다 (= 일요일 자정에 그 주 제출이 마감되고

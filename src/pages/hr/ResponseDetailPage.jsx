@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { collection, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { db } from "../../lib/firebase";
-import { getCurrentWeek } from "../../lib/week";
+import { getCurrentWeek, MANAGER_CHECKPOINT_WEEKS } from "../../lib/week";
 import ScoreSlider from "../../components/ScoreSlider";
 import ReviewPanel from "../../components/ReviewPanel";
 import ObservedComparisonPanel from "../../components/ObservedComparisonPanel";
@@ -81,7 +81,7 @@ export default function ResponseDetailPage() {
   const { internId } = useParams();
   const [internEmail, setInternEmail] = useState(null);
   const [responses, setResponses] = useState(null);
-  const [managerFeedback, setManagerFeedback] = useState({}); // { mid: scores|null, final: scores|null }
+  const [managerCheckpoints, setManagerCheckpoints] = useState([]); // [{ checkpointWeek, scores }]
   const [currentWeek, setCurrentWeek] = useState(1);
   const [reviews, setReviews] = useState({}); // { mid: narrative_text, final: narrative_text }
   const [interviews, setInterviews] = useState({}); // { mid: notes, final: notes }
@@ -103,16 +103,18 @@ export default function ResponseDetailPage() {
         setInternEmail(userSnap.data()?.email ?? null);
         setResponses(respSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
 
-        // 매니저 관찰은 3개월/6개월 시점에 한 번씩만 남기는 구조라
-        // (MetaFeedbackPage.jsx), 문서 ID가 `{internId}_{mid|final}`로 고정돼
-        // 있어 컬렉션 쿼리 없이 바로 조회한다.
-        const [midReview, finalReview, midInterview, finalInterview, midFeedback, finalFeedback] = await Promise.all([
+        // reviews/interviews는 여전히 3개월/6개월 심사 시점 2번뿐이라(AI 종합 해석,
+        // comprehensiveReview.js가 담당) 문서 ID로 바로 조회한다. 팀장 관찰
+        // (manager_feedback)은 이제 MANAGER_CHECKPOINT_WEEKS(약 월 1회, 6번)마다
+        // 별도 문서라 체크인 주차 수만큼 조회한다 — 심사 시점에만 몰아 남기면 팀장
+        // 관찰도 "관계가 끝나가는 시점의 총평"과 같은 왜곡 위험을 그대로 받기 때문에
+        // 평상시 여러 시점으로 나눴다(외부 리뷰로 발견).
+        const [midReview, finalReview, midInterview, finalInterview, ...checkpointSnaps] = await Promise.all([
           getDoc(doc(db, "reviews", `${internId}_mid`)),
           getDoc(doc(db, "reviews", `${internId}_final`)),
           getDoc(doc(db, "interviews", `${internId}_mid`)),
           getDoc(doc(db, "interviews", `${internId}_final`)),
-          getDoc(doc(db, "manager_feedback", `${internId}_mid`)),
-          getDoc(doc(db, "manager_feedback", `${internId}_final`)),
+          ...MANAGER_CHECKPOINT_WEEKS.map((w) => getDoc(doc(db, "manager_feedback", `${internId}_${w}`))),
         ]);
         setReviews({
           mid: midReview.exists() ? midReview.data().narrative_text : null,
@@ -122,10 +124,11 @@ export default function ResponseDetailPage() {
           mid: midInterview.exists() ? midInterview.data().notes : "",
           final: finalInterview.exists() ? finalInterview.data().notes : "",
         });
-        setManagerFeedback({
-          mid: midFeedback.exists() ? midFeedback.data().scores : null,
-          final: finalFeedback.exists() ? finalFeedback.data().scores : null,
-        });
+        setManagerCheckpoints(
+          checkpointSnaps
+            .filter((snap) => snap.exists())
+            .map((snap) => snap.data())
+        );
       } catch (e) {
         setError(e.message);
       }
@@ -152,54 +155,49 @@ export default function ResponseDetailPage() {
   const showMid = currentWeek >= 13;
   const showFinal = currentWeek >= 26;
 
-  // AI(자기서술) 평균을 그 시점 범위로 한정해서 팀장이 그 시점에 남긴 관찰
-  // (MetaFeedbackPage.jsx에서 mid/final 각각 한 번씩)과 짝지어 비교한다 —
-  // 3개월 시점엔 1~12주 AI 평균, 6개월 시점엔 1~25주 AI 평균과 비교하는 식.
-  // KPI "AI 채점-팀장 관찰 간 일치도"가 바로 이 비교에서 나온다.
-  const aiMidAveragesByLabel = averageByLabel(responses.filter((r) => r.missionId <= 12).map((r) => r.scores));
-  const aiFinalAveragesByLabel = averageByLabel(responses.filter((r) => r.missionId <= 25).map((r) => r.scores));
+  // AI-팀장 비교는 더 이상 mid/final 심사 시점에 묶이지 않는다 — 팀장 관찰이
+  // MANAGER_CHECKPOINT_WEEKS(약 월 1회)마다 누적되므로, 지금까지 쌓인 전체를
+  // 그대로 비교한다(체크인이 하나도 없으면 ObservedComparisonPanel이 알아서 안 그림).
+  const aiCumulativeAveragesByLabel = averageByLabel(responses.map((r) => r.scores));
+  const managerCumulativeAveragesByLabel = averageByLabel(managerCheckpoints.map((c) => c.scores));
+  const checkpointWeeksSoFar = managerCheckpoints
+    .map((c) => c.checkpointWeek)
+    .sort((a, b) => a - b);
 
   return (
     <div>
       <div className="label">{internEmail ?? internId}의 제출 내역 ({currentWeek}주차)</div>
       <ScoreCaveat />
 
+      <ObservedComparisonPanel
+        title="AI 채점 vs 팀장 관찰 (누적)"
+        subtitle={checkpointWeeksSoFar.length ? `팀장 체크인: ${checkpointWeeksSoFar.join(", ")}주차` : undefined}
+        aiAveragesByLabel={aiCumulativeAveragesByLabel}
+        managerScores={managerCumulativeAveragesByLabel}
+      />
+
       {showMid && (
-        <>
-          <ObservedComparisonPanel
-            title="AI 채점 vs 팀장 관찰 — 3개월 시점"
-            aiAveragesByLabel={aiMidAveragesByLabel}
-            managerScores={managerFeedback.mid}
-          />
-          <ReviewPanel
-            reviewType="mid"
-            weakAreas={computeWeakAreas(responses.filter((r) => r.missionId <= 12))}
-            missedWeeks={computeMissedWeeks(responses, 12)}
-            trendPoints={trendPoints.filter((p) => p.week <= 12)}
-            narrativeText={reviews.mid}
-            initialNotes={interviews.mid}
-            onSaveNotes={(notes) => saveInterviewNotes("mid", notes)}
-          />
-        </>
+        <ReviewPanel
+          reviewType="mid"
+          weakAreas={computeWeakAreas(responses.filter((r) => r.missionId <= 12))}
+          missedWeeks={computeMissedWeeks(responses, 12)}
+          trendPoints={trendPoints.filter((p) => p.week <= 12)}
+          narrativeText={reviews.mid}
+          initialNotes={interviews.mid}
+          onSaveNotes={(notes) => saveInterviewNotes("mid", notes)}
+        />
       )}
 
       {showFinal && (
-        <>
-          <ObservedComparisonPanel
-            title="AI 채점 vs 팀장 관찰 — 6개월 시점"
-            aiAveragesByLabel={aiFinalAveragesByLabel}
-            managerScores={managerFeedback.final}
-          />
-          <ReviewPanel
-            reviewType="final"
-            weakAreas={computeWeakAreas(responses.filter((r) => r.missionId <= 25))}
-            missedWeeks={computeMissedWeeks(responses, 25)}
-            trendPoints={trendPoints.filter((p) => p.week <= 25)}
-            narrativeText={reviews.final}
-            initialNotes={interviews.final}
-            onSaveNotes={(notes) => saveInterviewNotes("final", notes)}
-          />
-        </>
+        <ReviewPanel
+          reviewType="final"
+          weakAreas={computeWeakAreas(responses.filter((r) => r.missionId <= 25))}
+          missedWeeks={computeMissedWeeks(responses, 25)}
+          trendPoints={trendPoints.filter((p) => p.week <= 25)}
+          narrativeText={reviews.final}
+          initialNotes={interviews.final}
+          onSaveNotes={(notes) => saveInterviewNotes("final", notes)}
+        />
       )}
 
       {responses.map((r) => (
