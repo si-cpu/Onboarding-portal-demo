@@ -287,9 +287,44 @@ npm run cleanup:test-accounts -- --yes     → Auth 계정 78개 삭제(실패 0
 이 결과를 `README.md` 구현 현황의 대표 수치로 기록했다. 과거 25/26 기록은 앵커 중간대 보강과
 JSON 파싱 버그를 실측으로 발견한 과정 자체가 가치 있어 삭제하지 않고 그대로 둔다.
 
+## QA 로그 — Vercel 프로덕션 배포 + 20명 실부하테스트 (2026-08-04)
+
+### 1) 실제 Vercel 프로덕션 배포
+
+env 변수 10개(`VITE_FIREBASE_*` 6개, `ANTHROPIC_API_KEY`, `FIREBASE_PROJECT_ID`/
+`FIREBASE_CLIENT_EMAIL`/`FIREBASE_PRIVATE_KEY`)를 Vercel 프로젝트에 등록 후
+`vercel deploy --prod`. 라이브 URL: https://onboarding-portal-e2c22.vercel.app
+
+배포 직후 `/login`, `/intern/values` 등 클라이언트 라우트가 전부 404였다 — 로컬에서 써온
+`vite`/`vercel dev`는 SPA history fallback을 자동 처리해줘서 지금까지의 모든 QA(26/26,
+인젝션 9/9 포함)에서 전혀 드러나지 않았던, 실제 정적 호스팅 환경 전용 버그였다.
+`vercel.json`에 `/api/(.*)`를 제외한 나머지 경로를 `index.html`로 돌리는 `rewrites` 규칙을
+추가해 해소, 재배포 후 curl로 `/`, `/login`, `/intern/values`, `/api/score` 전부 200/401
+확인.
+
+Playwright로 라이브 URL 기준 로그인 → 신입 뷰(과거 제출 데이터·AI 피드백이 실제로 정상
+표시됨 — Firebase Auth·Firestore·서버리스 함수·Claude API가 프로덕션에서 전부 연결됨을
+확인) → 핵심가치 화면까지 실제 왕복, 콘솔 에러 0건.
+
+### 2) 20명 규모 실부하테스트 — 프로덕션 기준
+
+`seedTestUsers.js`로 로드테스트 계정 160개(20명 × 8라운드) 재시딩 후, `BASE_URL`을
+라이브 URL로 지정해 `npm run loadtest` 실행.
+
+```
+총 호출: 160건 · 성공: 160 · 실패: 0 · 캐시 응답: 0
+소요 시간: 243.4초 · 평균 응답시간: 11638ms
+실제 채점(캐시 아님, Claude 호출 발생): 160건
+```
+
+품질별(high/medium/low/evasive) 샘플 피드백도 루브릭이 실제로 구분해내는 걸 확인. 이후
+`cleanup:test-accounts -- --yes`로 Auth 계정 160개·responses 160건 삭제 완료.
+
+이 결과를 `CHARTER.md` v2.2 변경 이력과 리스크1 상태(✅ 해소)에 반영했다.
+
 ## 다음 액션
 
-QA 트랙(앵커 보강 + 외부 리뷰 P0/P1 전부 포함 + comprehensiveReview 인젝션 방어 + 최종 통합
-재검증) 전부 닫혔다. 남은 건 `CHARTER.md` 리스크1의 마지막 항목인 **Vercel 프로덕션 배포 +
-20명 규모 실부하테스트**(일반 처리량 검증, 레이스 컨디션과는 별개 — 그건 이미 실측 검증
-완료)뿐이다. 부하테스트는 비용이 드는 작업이라 배포 직전으로 미룸.
+`CHARTER.md` 리스크1(스코프 과다)의 P1 항목이 전부 닫혔다 — 프로토타입은 실제 라이브
+URL로 배포돼 있고, 26/26 채점 QA·9/9 인젝션 QA·160/160 부하테스트까지 프로덕션 기준으로
+전부 통과했다. 남은 건 P2(발표 슬라이드로만 설명하는 항목들)와 실제 제출물(발표 PPT,
+백업 시연 영상)뿐이다.
