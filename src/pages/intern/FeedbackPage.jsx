@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useResponses } from "../../hooks/useResponses";
 import { useMissions } from "../../hooks/useMissions";
+import AnswerCard from "../../components/AnswerCard";
 import FeedbackCard from "../../components/FeedbackCard";
 import NudgeCard from "../../components/NudgeCard";
 
@@ -32,6 +33,7 @@ export default function FeedbackPage() {
       {entries.map((entry) => (
         <div key={entry.missionId}>
           <div className="label">{questionFor(entry.missionId)}</div>
+          <AnswerCard answerText={entry.answerText} />
           <FeedbackCard feedbackText={entry.feedback_text} />
           <NudgeCard nudgeText={entry.nudge_text} />
         </div>

@@ -5,6 +5,7 @@ import { useResponses } from "../../hooks/useResponses";
 import { TOTAL_WEEKS, MID_REVIEW_WEEK, FINAL_REVIEW_WEEK } from "../../lib/week";
 import MissionCard from "../../components/MissionCard";
 import AnswerForm from "../../components/AnswerForm";
+import AnswerCard from "../../components/AnswerCard";
 import FeedbackCard from "../../components/FeedbackCard";
 import NudgeCard from "../../components/NudgeCard";
 import LockedPanel from "../../components/LockedPanel";
@@ -46,7 +47,7 @@ export default function MissionPage() {
     setSubmitError(null);
     try {
       const result = await submitAnswer(currentWeek, answerText);
-      setStatus({ ...result, missionId: currentWeek });
+      setStatus({ ...result, missionId: currentWeek, answerText });
     } catch (e) {
       setSubmitError(e.message);
     }
@@ -94,6 +95,7 @@ export default function MissionPage() {
           {status ? (
             <>
               {isCurrentWeek && <div className="success">✅ 제출 완료 — 답변이 저장됐습니다.</div>}
+              <AnswerCard answerText={status.answerText} />
               <FeedbackCard feedbackText={status.feedback_text} />
               <NudgeCard nudgeText={status.nudge_text} />
               {isCurrentWeek && (
