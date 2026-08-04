@@ -7,6 +7,7 @@ import Logo from "./components/Logo";
 
 const NAV_BY_ROLE = {
   intern: [
+    { to: "/intern/values", label: "핵심가치 둘러보기" },
     { to: "/intern/missions", label: "신입 뷰" },
     { to: "/intern/feedback", label: "피드백 히스토리" },
     { to: "/intern/timeline", label: "내 타임라인" },
