@@ -70,5 +70,23 @@ service cloud.firestore {
     match /interviews/{interviewId} {
       allow read, write: if role() in ['manager', 'hr'];
     }
+
+    // help_requests: 신입이 인사팀에게 남기는 자유서술 질문/요청 채널. 평가 파이프라인
+    // (responses/scores)과는 완전히 분리돼 있다 — 컨디션 상태 트래킹이나 점수화가 없는
+    // 순수 소통 창구라서, responses처럼 Admin SDK를 강제할 이유가 없다(감출 점수·조작
+    // 위험이 없음). reviews 컬렉션과 같은 패턴으로 본인 uid 기준 client SDK read/create를
+    // 허용한다. HR은 신입이 쓴 message는 수정 불가, hrReply/status/repliedAt만 갱신 가능
+    // (responses의 hr_comment 패턴과 동일).
+    match /help_requests/{requestId} {
+      allow read: if role() == 'hr' || (request.auth != null && request.auth.uid == resource.data.userId);
+      allow create: if role() == 'intern'
+                    && request.auth.uid == request.resource.data.userId
+                    && request.resource.data.message is string
+                    && request.resource.data.message.size() > 0
+                    && request.resource.data.status == 'open';
+      allow update: if role() == 'hr' && request.resource.data.diff(resource.data)
+                      .affectedKeys().hasOnly(['hrReply', 'repliedAt', 'status']);
+      allow delete: if false;
+    }
   }
 }
