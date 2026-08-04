@@ -97,7 +97,8 @@
   9/9 PASS) → `npm run cleanup:test-accounts -- --yes`(테스트 계정 78개 정리)까지 한 번에
   순서대로 실제 실행해서 확인. 이전까지 나뉘어 있던 26/26·25/26·6/6 등의 개별 실행 기록은
   발견 과정으로 `QA_LOG.md`에 남겨두고, 이 항목을 최신 `main` 전체의 대표 수치로 삼는다.
-- ⚠️ 실제 프로덕션 배포(Vercel prod)·20명 규모 실제 부하테스트는 아직 미실행(로컬 검증까지만 완료)
+- ✅ **실제 Vercel 프로덕션 배포 완료** — 라이브 URL: https://onboarding-portal-e2c22.vercel.app . 배포 직후 `/login`·`/intern/values` 등 SPA 클라이언트 라우트가 전부 404 나는 걸 발견했다(로컬은 `vite`/`vercel dev`가 history fallback을 자동으로 해줘서 안 드러났던 구멍) — `vercel.json`에 `/api/*`를 제외한 나머지 경로를 `index.html`로 돌리는 `rewrites` 규칙을 추가해 해소. 이후 Playwright로 라이브 URL 기준 로그인 → 신입 뷰(과거 제출 데이터·AI 피드백 정상 표시) → 핵심가치 화면까지 실제 왕복 확인, 콘솔 에러 0건.
+- ⚠️ 20명 규모 실제 부하테스트는 아직 미실행(로컬 `loadtest` 160/160 성공까지만 완료, 프로덕션 기준 재실행은 배포 직후 남은 항목)
 
 ## ⚠️ 알아두어야 할 구조적 한계
 
