@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import LoginPage from "./pages/LoginPage";
+import CoreValuesPage from "./pages/intern/CoreValuesPage";
 import MissionPage from "./pages/intern/MissionPage";
 import FeedbackPage from "./pages/intern/FeedbackPage";
 import TimelinePage from "./pages/intern/TimelinePage";
@@ -46,6 +47,7 @@ export default function AppRoutes() {
       <Route path="/login" element={<LoginRoute />} />
       <Route path="/" element={<RoleHome />} />
 
+      <Route path="/intern/values" element={<RequireRole role="intern"><CoreValuesPage /></RequireRole>} />
       <Route path="/intern/missions" element={<RequireRole role="intern"><MissionPage /></RequireRole>} />
       <Route path="/intern/feedback" element={<RequireRole role="intern"><FeedbackPage /></RequireRole>} />
       <Route path="/intern/timeline" element={<RequireRole role="intern"><TimelinePage /></RequireRole>} />

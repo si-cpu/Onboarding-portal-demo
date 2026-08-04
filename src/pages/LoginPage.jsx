@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../lib/firebase";
+import Logo from "../components/Logo";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -28,7 +29,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="page" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div
+      className="page"
+      style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24 }}
+    >
+      <Logo />
+      <div className="muted" style={{ marginTop: -16, textAlign: "center" }}>
+        핵심가치 연계형 신규 입사자 온보딩 포털
+      </div>
       <div className="card">
         <div className="label">온보딩 포털 로그인</div>
         <input
