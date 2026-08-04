@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>인터엑스 온보딩 포털 발표</title>
+<style>
+  :root {
+    --bg: #161512;
+    --panel: #1f1e1a;
+    --border: #3a3830;
+    --border-accent: #6b4426;
+    --text: #eae6da;
+    --text-dim: #8c887a;
+    --text-faint: #4a4640;
+    --accent: #d97e3d;
+    --accent-text: #1a1712;
+    --danger: #e07a5f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  body { font-family: "Apple SD Gothic Neo", "Malgun Gothic", system-ui, -apple-system, sans-serif; }
+  .slide {
+    width: 1280px;
+    height: 720px;
+    background: radial-gradient(1000px 480px at 50% -12%, rgba(217,126,61,0.10), transparent 60%), var(--bg);
+    color: var(--text);
+    padding: 64px 72px;
+    page-break-after: always;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .slide:last-child { page-break-after: auto; }
+  .kicker { color: var(--accent); font-size: 15px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 14px; }
+  h1 { font-size: 40px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 18px; line-height: 1.25; }
+  h2 { font-size: 30px; font-weight: 800; margin: 0 0 22px; letter-spacing: -0.01em; }
+  p.lead { font-size: 18px; color: var(--text-dim); line-height: 1.7; max-width: 920px; }
+  .footer-brand { position: absolute; bottom: 40px; right: 72px; display: flex; align-items: center; gap: 10px; opacity: 0.85; }
+  .footer-brand img { height: 20px; }
+  .page-no { position: absolute; bottom: 44px; left: 72px; color: var(--text-faint); font-size: 13px; font-weight: 600; }
+
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; }
+  .grid { display: grid; gap: 16px; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+  .principle-name { font-size: 17px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+  .principle-tag { font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 10px; }
+  .principle-desc { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+
+  .flow { display: flex; align-items: stretch; gap: 10px; margin-top: 28px; }
+  .flow-step { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px 16px; font-size: 14px; }
+  .flow-step .num { font-size: 12px; font-weight: 800; color: var(--accent); margin-bottom: 8px; letter-spacing: 0.05em; }
+  .flow-step .t { font-weight: 700; margin-bottom: 6px; font-size: 15px; }
+  .flow-step .d { color: var(--text-dim); font-size: 12.5px; line-height: 1.55; }
+  .flow-arrow { display: flex; align-items: center; color: var(--text-faint); font-size: 20px; }
+
+  .shot-frame { border: 1px solid var(--border-accent); border-radius: 14px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
+  .shot-frame img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+
+  .demo-layout { display: flex; gap: 40px; align-items: center; flex: 1; }
+  .demo-layout .shot-frame { width: 560px; height: 460px; flex-shrink: 0; }
+  .demo-copy { flex: 1; }
+  .demo-copy ul { margin: 0; padding-left: 20px; }
+  .demo-copy li { font-size: 15px; color: var(--text-dim); line-height: 1.7; margin-bottom: 10px; }
+  .demo-copy li b { color: var(--text); }
+
+  table.cmp { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 8px; }
+  table.cmp th { text-align: left; color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 12px; border-bottom: 1px solid var(--border-accent); }
+  table.cmp td { padding: 12px 12px; border-bottom: 1px solid var(--border); color: var(--text-dim); vertical-align: top; line-height: 1.55; }
+  table.cmp tr.chosen td { color: var(--text); background: rgba(217,126,61,0.06); }
+  table.cmp td.name { color: var(--text); font-weight: 700; }
+  .badge-pick { display: inline-block; background: var(--accent); color: var(--accent-text); font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+
+  .grid-2 .shot-frame { height: 280px; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 10px; }
+  .stat-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px 18px; text-align: center; }
+  .stat-num { font-size: 30px; font-weight: 800; color: var(--accent); }
+  .stat-label { font-size: 13px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
+
+  .risk-row { display: flex; gap: 14px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .risk-row .dot { flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; }
+  .risk-row .rt { font-size: 14px; }
+  .risk-row .rt b { display: block; margin-bottom: 2px; font-size: 15px; }
+  .risk-row .rt span { color: var(--text-dim); }
+
+  .cta-row { display: flex; gap: 16px; margin-top: 28px; }
+  .cta-box { flex: 1; background: var(--panel); border: 1px solid var(--border-accent); border-radius: 12px; padding: 20px; }
+  .cta-box .l { font-size: 12px; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .cta-box .v { font-size: 16px; font-weight: 700; word-break: break-all; }
+  .cta-box .s { font-size: 13px; color: var(--text-dim); margin-top: 6px; }
+
+  .title-hero { flex: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+  .title-hero .logo { height: 34px; margin-bottom: 28px; background: #fff; padding: 6px 14px; border-radius: 8px; }
+  .title-hero h1 { font-size: 46px; max-width: 900px; }
+  .title-hero .sub { font-size: 19px; color: var(--text-dim); margin-top: 8px; }
+  .title-meta { display: flex; gap: 28px; margin-top: 40px; font-size: 14px; color: var(--text-faint); }
+</style>
+</head>
+<body>
+
+<!-- 1. Title -->
+<section class="slide">
+  <div class="title-hero">
+    <img class="logo" src="../public/interx-logo-wordmark.webp" alt="InterX" />
+    <div class="kicker">인터엑스 AX 채용 오디션</div>
+    <h1>핵심가치 연계형 신규 입사자<br/>온보딩 포털</h1>
+    <div class="sub">평상시 조용히 쌓이는 데이터가, 전환 심사 시점의 방어 가능한 근거가 되는 온보딩 설계</div>
+    <div class="title-meta">
+      <div>라이브 URL: onboarding-portal-e2c22.vercel.app</div>
+      <div>발표자: [이름을 입력하세요]</div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. 문제정의 -->
+<section class="slide">
+  <div class="kicker">문제 정의</div>
+  <h2>온보딩엔 "기록"이 없다</h2>
+  <p class="lead">인터엑스는 이번 채용에서만 20명 이상을 5개 분야에서 동시에 선발하고, 3개월·6개월 전환 심사라는 실제 게이트를 운영한다. 그런데 그 6개월 동안 신입과 팀장 모두에게 근거를 남길 도구가 없다.</p>
+  <div class="grid grid-2" style="margin-top:28px; gap:20px;">
+    <div class="card">
+      <div class="principle-name">신입 입장</div>
+      <div class="principle-desc">26주 동안 스스로 어떻게 변하고 있는지 확인할 방법이 없다. 매주 일은 하지만 "지난달보다 나아졌는지" 볼 근거가 없어 막연한 불안만 쌓인다.</div>
+    </div>
+    <div class="card">
+      <div class="principle-name">팀장/사수 입장</div>
+      <div class="principle-desc">매일 스쳐가는 인상 외엔 관찰을 기록할 도구가 없다. 결국 전환 심사 시점에 "그동안의 느낌"으로 판단하고, 왜 통과/탈락시켰는지 방어할 근거가 부실해진다.</div>
+    </div>
+  </div>
+  <p class="lead" style="margin-top:24px; font-weight:700; color: var(--text);">이 프로젝트는 인사 제도를 재설계하지 않는다. 신입·팀장이 매주 겪는 작은 공백(성장 확인, 관찰 기록)을 메우고, 그 부산물이 심사 근거가 되게 하는 도구다.</p>
+</section>
+
+<!-- 3. 포지셔닝 -->
+<section class="slide">
+  <div class="kicker">포지셔닝</div>
+  <h2>"매일 쓰는 도구"가 아니라 "조용히 쌓이는 보험"</h2>
+  <p class="lead">숙련된 사수는 몇 주만 지켜봐도 신입을 직관적으로 판단할 수 있고, 실제로 대부분의 조직은 그 직관만으로 돌아간다. 문제는 그 직관이 <b style="color:var(--text)">이의제기·형평성 논란처럼 애매한 순간에 방어할 근거가 없다</b>는 데서 드러난다.</p>
+  <div class="card" style="margin-top:28px; max-width: 920px;">
+    <div class="principle-tag">핵심 통찰 — 왜곡은 아무 때나 골고루 생기지 않는다</div>
+    <div class="principle-desc" style="font-size:15px;">왜곡은 관계가 안정적인 평상시(매주 미션에 답하는 순간)엔 낮고, 관계의 지속 여부가 걸린 <b style="color:var(--text)">전환 심사 시점</b>에 응축된다 — "이번엔 봐줘야 하나", "굳이 이제 와서 문제 삼아야 하나" 같은 고민이 전부 그 순간에 몰린다.</div>
+  </div>
+  <p class="lead" style="margin-top:20px;">그래서 이 포털은 <b style="color:var(--text)">왜곡 위험이 낮은 평상시 누적 데이터를 메인 근거로</b> 삼고, 왜곡 위험이 큰 심사 시점의 총평은 그것을 보완하는 역할에만 머물게 설계했다.</p>
+</section>
+
+<!-- 4. 설계원칙 -->
+<section class="slide">
+  <div class="kicker">설계 원칙 — 역발상 4가지</div>
+  <h2>왜 숨겨야 데이터가 순수해지는가</h2>
+  <div class="grid grid-2" style="gap:16px; flex:1;">
+    <div class="card">
+      <div class="principle-name">01. 미션 블라인드</div>
+      <div class="principle-tag">측정 대상을 숨긴다</div>
+      <div class="principle-desc">신입에게 노출되는 질문은 특정 핵심가치를 지칭하지 않는 범용 회고 질문. 측정 가치는 서버 내부 매핑으로만 관리 — 답변의 전략적 포장(인상관리)을 차단.</div>
+    </div>
+    <div class="card">
+      <div class="principle-name">02. 점수 비공개</div>
+      <div class="principle-tag">본인에겐 점수를 안 보여준다</div>
+      <div class="principle-desc">신입에겐 정성 피드백만, 정량 점수는 비노출. 동기 간 비교·갈등으로 인한 데이터 왜곡을 차단.</div>
+    </div>
+    <div class="card">
+      <div class="principle-name">03. 평가자 익명성</div>
+      <div class="principle-tag">팀장 관찰의 존재 자체를 숨긴다</div>
+      <div class="principle-desc">팀장/사수의 메타 피드백 존재 자체를 신입에게 비공개 — 온정주의(친분 기반 후한 평가) 개입을 차단.</div>
+    </div>
+    <div class="card">
+      <div class="principle-name">04. 정보 잠금 + 점수 고정</div>
+      <div class="principle-tag">심사 시점 총평을 덜 믿는다</div>
+      <div class="principle-desc">개별 점수는 제출 즉시 고정(왜곡 위험 낮음). 성장 궤적 같은 종합 해석은 3/6개월 심사 시점까지 잠금 — 총평이 메인이 아니라 보완 역할에 머물게.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. 파이프라인 -->
+<section class="slide">
+  <div class="kicker">파이프라인</div>
+  <h2>26주, 서로 다른 질문 26개</h2>
+  <div class="flow">
+    <div class="flow-step"><div class="num">01</div><div class="t">주간 미션</div><div class="d">26개 유니크 질문 중 해당 주차 1개. 가치명 비노출, "일반 업무 회고"로 인식</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="num">02</div><div class="t">AI 채점</div><div class="d">Claude가 답변에서 다중 가치 신호 추출, 앵커 기반 정량 채점 + 정성 피드백 + 넛지 생성</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="num">03</div><div class="t">팀장 관찰</div><div class="d">월 1회(4·8·12·16·20·25주차), 30초 슬라이더. 신입은 이 레이어 존재를 모름</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="num">04</div><div class="t">3/6개월 심사</div><div class="d">누적 데이터(메인) + 이 시점 생성된 종합 해석(보완)을 결합한 방어 가능 근거자료</div></div>
+  </div>
+  <p class="lead" style="margin-top:32px;">3개월 시점엔 인사팀-신입 간 약 1시간의 캐주얼 체크인도 둔다 — 점수는 불변, 맥락은 코멘트로만 기록해 쌍방향 소통을 보장한다.</p>
+</section>
+
+<!-- 6. 데모 - 홈 -->
+<section class="slide">
+  <div class="kicker">라이브 데모 · 01</div>
+  <h2>로그인하면 "평가"가 아니라 "환영"부터</h2>
+  <div class="demo-layout">
+    <div class="shot-frame"><img src="shots/home.png" /></div>
+    <div class="demo-copy">
+      <ul>
+        <li><b>기존 문제</b>: 로그인하면 바로 미션/채점 화면으로 떨어져 첫인상이 온보딩보다 평가 시스템에 가까웠다.</li>
+        <li><b>해결</b>: 로그인 후 기본 진입점을 홈 화면으로 변경 — 이번 주 미션 상태, 최근 AI 피드백, 오늘의 핵심가치, 다음 체크인을 한 화면에.</li>
+        <li>새 데이터 없이 기존 API만 재사용 — "오늘의 핵심가치"는 실제 미션-가치 매핑과 연결하지 않아 미션 블라인드 원칙을 그대로 지킨다.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 7. 데모 - values -->
+<section class="slide">
+  <div class="kicker">라이브 데모 · 02</div>
+  <h2>핵심가치를 먼저 만난다</h2>
+  <div class="demo-layout">
+    <div class="shot-frame"><img src="shots/values.png" /></div>
+    <div class="demo-copy">
+      <ul>
+        <li>12개 핵심가치 전부를 태그라인+설명과 함께 소개하는 화면.</li>
+        <li>26개 미션 질문 각각의 실제 의도를 근거로 문구를 작성 — "왜 이 미션들이 이 태도를 묻는가"를 보여주는 입구.</li>
+        <li>미션-가치 매핑(어떤 질문이 어떤 가치를 측정하는지)은 노출하지 않는다 — 문화 소개용 콘텐츠와 채점 로직은 완전히 분리.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 8. 데모 - mission -->
+<section class="slide">
+  <div class="kicker">라이브 데모 · 03</div>
+  <h2>답변 → AI 피드백, 점수는 비공개</h2>
+  <div class="demo-layout">
+    <div class="shot-frame"><img src="shots/mission.png" /></div>
+    <div class="demo-copy">
+      <ul>
+        <li>제출한 내 답변과 AI의 정성 피드백을 함께 확인 — 점수·가치명은 절대 노출하지 않는다.</li>
+        <li>다음 주 목표를 위한 넛지(nudge)를 덧붙여, 평가와 성장 코칭이 하나의 루프 안에서 일어난다.</li>
+        <li>과거 주차를 오가며 그때 낸 답변·피드백을 다시 볼 수 있다.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 9. 데모 - help + hr -->
+<section class="slide">
+  <div class="kicker">라이브 데모 · 04</div>
+  <h2>신입 → HR, 놓치지 않는 요청 구조</h2>
+  <div class="grid grid-2" style="gap:20px; flex:1;">
+    <div>
+      <div class="shot-frame"><img src="shots/help.png" /></div>
+      <div class="principle-desc" style="margin-top:10px;">신입이 자유서술로 남기는 요청/질문 채널. 컨디션 상태 트래킹은 의도적으로 없음 — 평가 파이프라인과 분리된 순수 소통 창구.</div>
+    </div>
+    <div>
+      <div class="shot-frame"><img src="shots/hr-dashboard.png" /></div>
+      <div class="principle-desc" style="margin-top:10px;">HR 대시보드 상단에 미답변 요청 수 + 요약이 바로 보인다. 답장하면 앱 안에서 확인, 패널에서 자동으로 사라짐.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 10. AI 도구 비교 -->
+<section class="slide">
+  <div class="kicker">AI 도구 리서치 · 검증</div>
+  <h2>왜 Claude인가</h2>
+  <table class="cmp">
+    <tr><th>후보</th><th>장점</th><th>리스크</th><th>채택</th></tr>
+    <tr class="chosen">
+      <td class="name">Claude<br/>(claude-sonnet-4-6)</td>
+      <td>system/user 프롬프트 분리가 명확해 인젝션 방어(untrusted 태그 격리)에 유리. 긴 지시 준수력이 좋아 "정성 피드백만, 점수·가치명 비노출" 같은 다중 제약을 안정적으로 지킴. 자연스러운 한국어 대화체 생성.</td>
+      <td>완전한 재현성은 보장 안 됨 → temperature:0 + 답변 해시 캐싱으로 실질적 재현성 확보</td>
+      <td><span class="badge-pick">채택</span></td>
+    </tr>
+    <tr>
+      <td class="name">GPT-4 계열<br/>(OpenAI)</td>
+      <td>생태계·함수호출 성숙도 높음</td>
+      <td>이번 과제에서 직접 실측 비교는 하지 않음 — 전환 시 프롬프트 재검증 비용 발생</td>
+      <td>검토 후 보류</td>
+    </tr>
+    <tr>
+      <td class="name">Gemini<br/>(Google)</td>
+      <td>Firebase와 같은 생태계라 통합 용이</td>
+      <td>마찬가지로 미검증, 채점 일관성 실측 데이터 없음</td>
+      <td>검토 후 보류</td>
+    </tr>
+    <tr>
+      <td class="name">룰 기반<br/>(키워드 매칭)</td>
+      <td>완전한 재현성, API 비용 없음</td>
+      <td>자연어 서술형 답변의 구체성·정서 일관성 같은 뉘앙스를 못 잡음 — 이 프로젝트 핵심 요구사항과 근본적으로 안 맞음</td>
+      <td>기각</td>
+    </tr>
+  </table>
+</section>
+
+<!-- 11. 검증 결과 -->
+<section class="slide">
+  <div class="kicker">검증 결과</div>
+  <h2>주장이 아니라 실측</h2>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-num">26/26</div><div class="stat-label">채점 QA PASS<br/>(고/중/저품질 순서 유지)</div></div>
+    <div class="stat-card"><div class="stat-num">9/9</div><div class="stat-label">프롬프트 인젝션<br/>방어 QA PASS</div></div>
+    <div class="stat-card"><div class="stat-num">160/160</div><div class="stat-label">20명 규모 실부하테스트<br/>(프로덕션 기준)</div></div>
+    <div class="stat-card"><div class="stat-num">100%</div><div class="stat-label">실제 프로덕션 배포<br/>라이브 URL 상시 접속</div></div>
+  </div>
+  <p class="lead" style="margin-top:28px;">전부 로컬 주장이 아니라 실제 Vercel 프로덕션 URL을 대상으로 재실행해 확인했다. 배포 직후 SPA 라우팅 버그도 실제로 발견해 그 자리에서 수정 — "말로 하는 주장"이 아니라 "동일 입력 → 동일 출력"을 실시간으로 보여줄 수 있는 상태.</p>
+</section>
+
+<!-- 12. 리스크 인정 -->
+<section class="slide">
+  <div class="kicker">정직하게 인정하는 한계</div>
+  <h2>모든 것을 다 채우지 않았다</h2>
+  <div style="flex:1;">
+    <div class="risk-row"><div class="dot" style="background:var(--text-faint)"></div><div class="rt"><b>AI 채점의 완전한 재현성·절대적 정확성은 주장하지 않는다.</b><span>"정성 판단을 대체"가 아니라 "정성 판단이 딛고 설 근거를 제공"하는 시스템으로 포지셔닝.</span></div></div>
+    <div class="risk-row"><div class="dot" style="background:var(--text-faint)"></div><div class="rt"><b>온정주의 감소·성장궤적 예측력은 검증된 결과가 아니라 설계 가설이다.</b><span>실제 도입 시 파일럿 기간을 통해 효과를 검증해야 한다.</span></div></div>
+    <div class="risk-row"><div class="dot" style="background:var(--text-faint)"></div><div class="rt"><b>개인별 목표 기반 평가는 이번 구현 범위에서 제외했다.</b><span>남은 일정 대비 신규 구현 범위가 커서, 향후 확장 설계로만 남겨둠.</span></div></div>
+    <div class="risk-row"><div class="dot" style="background:var(--text-faint)"></div><div class="rt"><b>"인사팀 상시 케어 시스템"까지는 가지 않았다.</b><span>온보딩 포털의 스코프를 넘어서는 지점이라 판단, 자유서술 요청 채널 수준으로 의도적으로 제한.</span></div></div>
+  </div>
+</section>
+
+<!-- 13. 마무리 -->
+<section class="slide">
+  <div class="kicker">마무리</div>
+  <h2>지금 바로 확인 가능합니다</h2>
+  <div class="cta-row">
+    <div class="cta-box">
+      <div class="l">라이브 URL</div>
+      <div class="v">onboarding-portal-e2c22.vercel.app</div>
+      <div class="s">8/28까지 상시 접속 가능</div>
+    </div>
+    <div class="cta-box">
+      <div class="l">심사용 테스트 계정</div>
+      <div class="v">intern@test.local / hr@test.local</div>
+      <div class="s">비밀번호: RoleTest1234!</div>
+    </div>
+  </div>
+  <p class="lead" style="margin-top:36px;">이 포털은 신입에게는 성장 확인 도구로, 팀장에게는 관찰 기록 도구로, 그 결과가 인사팀의 방어 가능한 심사 근거로 자연스럽게 이어지도록 설계했습니다.</p>
+  <p class="lead" style="margin-top:12px; font-weight:700; color:var(--text);">감사합니다. 질문 받겠습니다.</p>
+</section>
+
+</body>
+</html>
