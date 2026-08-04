@@ -67,7 +67,9 @@
 - ✅ `/api/score` 동시 제출 레이스 완전 차단(트랜잭션 내부에서 중복제출 재검증) — 같은 계정으로
   동시에 다른 답변 2건을 쏴서 하나만 성공하는 것까지 실측 검증 완료
 - ✅ 루브릭 앵커에 중간대(50~65점대) 추가 — 고점/저점 앵커만 있어 실제 답변이 몰리는 중간대가
-  비어있던 문제 보강, `qa:scores`로 26개 미션 재검증(25/26 PASS)
+  비어있던 문제 보강. 이후 `feedback_text` 인용부호 파싱 버그(아래) 수정을 거쳐, 최신 `main`
+  기준 `qa:scores` 최종 재검증 결과는 **26/26 PASS, 에러 0건**(과거 25/26·파싱 에러 1건은
+  발견 당시 기록으로 `QA_LOG.md`에 남겨둠)
 - ✅ `/api/score` JSON 파싱이 `feedback_text` 안 인용부호에 깨지던 버그 수정(`comprehensiveReview.js`/
   `growthNarrative.js`와 같은 원인 — `scores`는 JSON, `feedback_text`는 마커로 분리한 자유 텍스트)
 - ✅ 점수 해상도 경고(`ScoreCaveat`) — HR 대시보드/응답 상세에 "근소한 점수 차이는 실제 우열이
@@ -81,13 +83,20 @@
   실제 게이팅이 없어서 1주차부터 접근 가능했다(외부 리뷰로 발견). `currentWeek`로 실제 잠금을
   강제하고, 잠금 해제 후엔 주차별 본인 답변·피드백·넛지 + 6개월 종합 서사를 함께 보여준다.
   "같은 미션 2회 이상 → 성장 서사" 죽은 코드(`growthNarrative.js`)는 제거.
-- ✅ `/api/score` 프롬프트 인젝션 방어 — 채점 규칙(system)과 신입 답변(user, `<untrusted_answer>`로
-  격리)을 분리하고, `feedback_text`에 핵심가치명·"N점" 패턴이 새어나오면 재생성 후 안전 문구로
-  대체하는 출력 검증도 추가. 공격형 QA 스크립트(`npm run qa:injection`)로 점수조작 유도·가짜
-  SYSTEM 메시지·시스템 프롬프트 탈취 3종 × 미션 2개 = 6건 전부 실측 PASS(조작·유출 0건)
+- ✅ `/api/score` + `/api/comprehensiveReview` 프롬프트 인젝션 방어 — 채점/종합서사 규칙(system)과
+  신입 답변(user, `<untrusted_answer>`로 격리 + `<`/`>`/`&` 이스케이프로 태그 조기 종료 공격 차단)을
+  분리하고, 출력에 핵심가치명·"N점" 패턴이 새어나오면 재생성 후 안전 문구로 대체하는 검증도 추가
+  (`api/_leakCheck.js` 공유 헬퍼). 공격형 QA 스크립트(`npm run qa:injection`)로 점수조작 유도·가짜
+  SYSTEM 메시지·시스템 프롬프트 탈취·태그 조기 종료 등 최신 `main` 기준 **9/9건 전부 실측 PASS**
+  (조작·유출 0건)
 - ✅ HR 응답 상세의 AI-팀장 괴리 플래그(임계값 20)를 방향별로 다른 문구로 분리 — AI가 높으면
   "자기서술 포장 가능성", 팀장이 높으면 "AI 과소평가 또는 답변 근거 부족 가능성"(예전엔
   `Math.abs(gap)`만 보고 방향 무관하게 같은 문구를 붙였음)
+- ✅ **최종 통합 QA (main `47ebf2d` 기준)** — `npm run build`(성공) → `npm run qa:scores`
+  (26/26 PASS, 에러 0건) → `npm run qa:injection`(score.js 6건 + comprehensiveReview.js 3건 =
+  9/9 PASS) → `npm run cleanup:test-accounts -- --yes`(테스트 계정 78개 정리)까지 한 번에
+  순서대로 실제 실행해서 확인. 이전까지 나뉘어 있던 26/26·25/26·6/6 등의 개별 실행 기록은
+  발견 과정으로 `QA_LOG.md`에 남겨두고, 이 항목을 최신 `main` 전체의 대표 수치로 삼는다.
 - ⚠️ 실제 프로덕션 배포(Vercel prod)·20명 규모 실제 부하테스트는 아직 미실행(로컬 검증까지만 완료)
 
 ## ⚠️ 알아두어야 할 구조적 한계
