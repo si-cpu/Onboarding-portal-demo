@@ -40,13 +40,39 @@ a {
   padding: 40px 24px;
 }
 
+.app-header {
+  margin-bottom: 28px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.app-logo-link {
+  display: inline-flex;
+  flex-shrink: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.app-logo-link:hover {
+  opacity: 0.85;
+  transform: translateY(-1px);
+}
+
 .tabs {
   display: flex;
   gap: 8px;
-  margin-bottom: 28px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
+}
+
+.tab-logout {
+  flex-shrink: 0;
 }
 
 .tab {

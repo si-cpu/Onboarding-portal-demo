@@ -7,7 +7,6 @@ import Logo from "./components/Logo";
 
 const NAV_BY_ROLE = {
   intern: [
-    { to: "/intern/home", label: "홈" },
     { to: "/intern/values", label: "핵심가치 둘러보기" },
     { to: "/intern/missions", label: "신입 뷰" },
     { to: "/intern/feedback", label: "피드백 히스토리" },
@@ -32,21 +31,25 @@ export default function App() {
   return (
     <div className="page">
       {showNav && (
-        <div className="tabs">
-          {navItems.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={`tab ${location.pathname === item.to ? "active" : ""}`}
-            >
-              {item.label}
+        <div className="app-header">
+          <div className="app-header-top">
+            <Link to="/" className="app-logo-link" aria-label="홈으로 이동">
+              <Logo />
             </Link>
-          ))}
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
-            <Logo />
-            <button className="tab" onClick={() => signOut(auth)}>
+            <button className="tab tab-logout" onClick={() => signOut(auth)}>
               로그아웃
             </button>
+          </div>
+          <div className="tabs">
+            {navItems.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`tab ${location.pathname === item.to ? "active" : ""}`}
+              >
+                {item.label}
+              </Link>
+            ))}
           </div>
         </div>
       )}
