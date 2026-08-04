@@ -99,6 +99,8 @@
   발견 과정으로 `QA_LOG.md`에 남겨두고, 이 항목을 최신 `main` 전체의 대표 수치로 삼는다.
 - ✅ **실제 Vercel 프로덕션 배포 완료** — 라이브 URL: https://onboarding-portal-e2c22.vercel.app . 배포 직후 `/login`·`/intern/values` 등 SPA 클라이언트 라우트가 전부 404 나는 걸 발견했다(로컬은 `vite`/`vercel dev`가 history fallback을 자동으로 해줘서 안 드러났던 구멍) — `vercel.json`에 `/api/*`를 제외한 나머지 경로를 `index.html`로 돌리는 `rewrites` 규칙을 추가해 해소. 이후 Playwright로 라이브 URL 기준 로그인 → 신입 뷰(과거 제출 데이터·AI 피드백 정상 표시) → 핵심가치 화면까지 실제 왕복 확인, 콘솔 에러 0건.
 - ✅ **20명 규모 실부하테스트, 프로덕션 기준 완료** — `BASE_URL`을 라이브 URL로 지정해 `npm run loadtest` 재실행(20명 × 8라운드 = 160건, 동시 10개씩). **160/160 성공, 실패 0건**, 평균 응답 11.6초, 전부 캐시 아닌 실제 Claude 채점. 테스트 계정 160개는 `cleanup:test-accounts`로 정리 완료.
+- ✅ **신입 홈 화면(`/intern/home`) 신설, 로그인 후 기본 진입점 변경** — 예전엔 로그인하면 바로 `/intern/missions`(제출/채점 화면)로 떨어져서 첫인상이 온보딩보다 평가 시스템에 가까웠다(외부 피드백으로 지적). 이번 주 미션 상태·최근 AI 피드백·오늘의 핵심가치·다음 체크인 안내를 모은 홈으로 교체(새 데이터 없이 기존 API 재사용).
+- ✅ **신입 → HR 소통 요청 채널(`/intern/help` + `/hr/help-requests`)** — 리스크8("인사팀과의 유기적 소통" 미충족)을 최소 범위로 해소. 컨디션 상태 트래킹은 의도적으로 넣지 않고 순수 자유서술 요청/질문만 받는 채널로 한정해, 평가 파이프라인·정보 잠금 원칙과 섞이지 않게 했다. HR은 `responses.hr_comment`와 같은 패턴(client SDK 직접 update)으로 앱 안에서 답장. `help_requests` 컬렉션 신설(`firestore.rules`/`firestore.indexes.json` 갱신, `firebase deploy` 완료). Playwright로 신입 제출 → HR 답장 → 신입 확인까지 로컬+프로덕션 양쪽 왕복 확인, 콘솔 에러 0건.
 
 ## ⚠️ 알아두어야 할 구조적 한계
 
