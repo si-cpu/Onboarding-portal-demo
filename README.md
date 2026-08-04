@@ -101,6 +101,15 @@
 - ✅ **20명 규모 실부하테스트, 프로덕션 기준 완료** — `BASE_URL`을 라이브 URL로 지정해 `npm run loadtest` 재실행(20명 × 8라운드 = 160건, 동시 10개씩). **160/160 성공, 실패 0건**, 평균 응답 11.6초, 전부 캐시 아닌 실제 Claude 채점. 테스트 계정 160개는 `cleanup:test-accounts`로 정리 완료.
 - ✅ **신입 홈 화면(`/intern/home`) 신설, 로그인 후 기본 진입점 변경** — 예전엔 로그인하면 바로 `/intern/missions`(제출/채점 화면)로 떨어져서 첫인상이 온보딩보다 평가 시스템에 가까웠다(외부 피드백으로 지적). 이번 주 미션 상태·최근 AI 피드백·오늘의 핵심가치·다음 체크인 안내를 모은 홈으로 교체(새 데이터 없이 기존 API 재사용).
 - ✅ **신입 → HR 소통 요청 채널(`/intern/help` + `/hr/help-requests`)** — 리스크8("인사팀과의 유기적 소통" 미충족)을 최소 범위로 해소. 컨디션 상태 트래킹은 의도적으로 넣지 않고 순수 자유서술 요청/질문만 받는 채널로 한정해, 평가 파이프라인·정보 잠금 원칙과 섞이지 않게 했다. HR은 `responses.hr_comment`와 같은 패턴(client SDK 직접 update)으로 앱 안에서 답장. `help_requests` 컬렉션 신설(`firestore.rules`/`firestore.indexes.json` 갱신, `firebase deploy` 완료). Playwright로 신입 제출 → HR 답장 → 신입 확인까지 로컬+프로덕션 양쪽 왕복 확인, 콘솔 에러 0건.
+- ✅ **신입 화면에 본인 답변 표시(`AnswerCard`)** — `/api/checkCache`는 이미 `answerText`를 내려주고 있었는데 `MissionPage`(과거 주차)·`FeedbackPage`(피드백 히스토리)는 질문+AI 피드백만 보여주고 본인 답변은 6개월 뒤 타임라인에서만 다시 볼 수 있었다. AI 피드백 바로 위에 "내 답변"을 표시하도록 두 화면 모두 수정.
+- ✅ **nav 헤더 레이아웃 정리** — 로고+탭+로그아웃이 한 줄에 섞여 있어 탭이 늘어나며 줄바꿈이 지저분해지던 문제 해소. 헤더를 2단(위: 로고+로그아웃, 아래: 나비게이션 탭)으로 분리하고 로고를 `/`로 이동하는 홈 링크로 변경 — intern nav의 중복 "홈" 탭 제거로 탭 5개가 한 줄에 정렬됨. "신입 뷰" 탭 라벨도 "미션"으로 변경.
+- ✅ **HR 대시보드 미답변 요청 요약 패널** — `help_requests`에서 `status == "open"` 개수 + 최근 3건 미리보기 + 요청함 이동 버튼을 대시보드 상단에 추가(미답변 0건이면 패널 자체가 안 보임). 새 API 없이 기존 쿼리 하나(`status`+`createdAt` 복합 색인)만 추가.
+
+## 발표 자료
+
+- `deck/InterX_온보딩포털_발표.pdf` — 16장 발표 PPT (`deck/deck.html`이 원본, Playwright `page.pdf()`로 렌더링)
+- `deck/output/InterX_온보딩포털_시연영상.mp4` — 백업 시연 영상(60초, H.264, 실사용자 녹화를 crop+2.6배속으로 편집)
+- `npm run demo:walkthrough`(`scripts/walkDemoTimeline.js`) — 발표·심사용 고정 데모 계정(`demo-timeline@test.local` / `DemoTimeline1234!`)을 만들어 26주 전체를 실제 `/api/score` 호출로 채우고 13/26주차 종합 해석까지 미리 생성해둔다. 로그인하면 3/6개월 성장 서사를 바로 볼 수 있음(주차 게이팅 우회 없이, `joinedAt`을 실제로 백데이트).
 
 ## ⚠️ 알아두어야 할 구조적 한계
 
