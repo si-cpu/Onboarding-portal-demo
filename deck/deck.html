@@ -255,6 +255,38 @@
   </div>
 </section>
 
+<!-- 9-1. 데모 - 3/6개월 종합 해석 -->
+<section class="slide">
+  <div class="kicker">라이브 데모 · 05</div>
+  <h2>6개월 뒤, 성장 서사로 돌아온다</h2>
+  <div class="demo-layout">
+    <div class="shot-frame"><img src="shots/timeline.png" /></div>
+    <div class="demo-copy">
+      <ul>
+        <li>26주 전체 답변을 AI가 한 번에 훑어 3개월·6개월 시점에 종합 성장 서사를 생성 — 반복 질문 비교보다 데이터 소스가 훨씬 넓다(최대 25개 답변).</li>
+        <li>여기서도 <b>점수·가치명은 절대 언급하지 않는다</b> — 담담한 관찰자 시점으로 "무엇이 실제로 달라졌는지"만 서술.</li>
+        <li>이 서사가 나오기 전까지 잠겨 있던 게 바로 설계원칙 04(정보 잠금) — 왜곡 위험이 큰 심사 시점 총평이 메인이 아니라 보완 역할에 머물게 하는 장치가 실제로 작동하는 화면.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 9-2. 데모 - 매니저 + HR 비교 -->
+<section class="slide">
+  <div class="kicker">라이브 데모 · 06</div>
+  <h2>팀장 관찰과 AI 채점, 서로를 검증한다</h2>
+  <div class="grid grid-2" style="gap:20px; flex:1;">
+    <div>
+      <div class="shot-frame"><img src="shots/manager.png" /></div>
+      <div class="principle-desc" style="margin-top:10px;">팀장은 월 1회(4·8·12·16·20·25주차) 30초 슬라이더로 관찰 — 관찰 못 한 항목은 체크 해제, 50점 기본값으로 채워지지 않는다. 신입은 이 레이어 존재를 모른다.</div>
+    </div>
+    <div>
+      <div class="shot-frame"><img src="shots/hr-detail.png" /></div>
+      <div class="principle-desc" style="margin-top:10px;">HR은 AI 자기서술 채점과 팀장 관찰을 나란히 비교한다. 괴리가 크면 "자기서술이 포장됐거나 팀장이 과소평가했을 가능성" 신호로 — 정량 근거가 서로를 검증하는 이중 측정 구조.</div>
+    </div>
+  </div>
+</section>
+
 <!-- 10. AI 도구 비교 -->
 <section class="slide">
   <div class="kicker">AI 도구 리서치 · 검증</div>
@@ -310,6 +342,32 @@
     <div class="risk-row"><div class="dot" style="background:var(--text-faint)"></div><div class="rt"><b>온정주의 감소·성장궤적 예측력은 검증된 결과가 아니라 설계 가설이다.</b><span>실제 도입 시 파일럿 기간을 통해 효과를 검증해야 한다.</span></div></div>
     <div class="risk-row"><div class="dot" style="background:var(--text-faint)"></div><div class="rt"><b>개인별 목표 기반 평가는 이번 구현 범위에서 제외했다.</b><span>남은 일정 대비 신규 구현 범위가 커서, 향후 확장 설계로만 남겨둠.</span></div></div>
     <div class="risk-row"><div class="dot" style="background:var(--text-faint)"></div><div class="rt"><b>"인사팀 상시 케어 시스템"까지는 가지 않았다.</b><span>온보딩 포털의 스코프를 넘어서는 지점이라 판단, 자유서술 요청 채널 수준으로 의도적으로 제한.</span></div></div>
+  </div>
+</section>
+
+<!-- 12-1. 향후 확장 -->
+<section class="slide">
+  <div class="kicker">향후 확장 (P2, 이번 범위 밖)</div>
+  <h2>개인별 목표 기반 평가</h2>
+  <p class="lead">절대점수가 아닌 "입사 시 설정한 개인별 목표 대비 달성률"로 평가해, 배경이 다른 신입 간 불공정 비교를 막는 확장안이다.</p>
+  <div class="flow" style="margin-top:24px;">
+    <div class="flow-step"><div class="num">01</div><div class="t">베이스라인 진단</div><div class="d">입사 1주차, 배경·경험 데이터 수집</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="num">02</div><div class="t">AI 목표 제안</div><div class="d">배경 데이터 기반 적정 목표 범위를 AI가 제안</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="num">03</div><div class="t">팀장 승인</div><div class="d">제안된 목표를 팀장이 검토·승인</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><div class="num">04</div><div class="t">달성률 추적</div><div class="d">목표 대비 달성률을 후행 KPI로 추적</div></div>
+  </div>
+  <div class="grid grid-2" style="gap:16px; margin-top:24px;">
+    <div class="card">
+      <div class="principle-name">왜 이번엔 제외했나</div>
+      <div class="principle-desc">접수까지 남은 일정 대비 신규 구현 범위가 크다 — 신규 Firestore 컬렉션, AI 목표 제안 API, 신입 선택 UI, 팀장 승인 UI, 수정 권한 관리, 기존 넛지·종합 리뷰와의 연동, 그리고 이 전부에 대한 보안 규칙·QA가 추가로 필요하다.</div>
+    </div>
+    <div class="card">
+      <div class="principle-name">완전히 손 놓은 건 아니다</div>
+      <div class="principle-desc">지금도 "최근 답변 대비 상대적으로 약한 영역"을 매주 넛지로 짚어주고 3/6개월 종합 서사를 생성한다. 이 확장안은 그걸 "상대적 약점 대비"에서 "입사 시 설정한 절대 목표 대비"로 한 단계 발전시키는 방향이다.</div>
+    </div>
   </div>
 </section>
 
