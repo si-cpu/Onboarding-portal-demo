@@ -14,11 +14,14 @@ export default function ReviewPanel({
 }) {
   const [notes, setNotes] = useState(initialNotes ?? "");
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
 
   async function handleSave() {
     setSaving(true);
     try {
       await onSaveNotes(notes);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2500);
     } finally {
       setSaving(false);
     }
@@ -59,6 +62,7 @@ export default function ReviewPanel({
         onChange={(e) => setNotes(e.target.value)}
         placeholder="면담 진행 여부, 논의한 내용, 후속 조치 등을 기록하세요."
       />
+      {justSaved && <div className="success">✅ 저장 완료</div>}
       <button className="btn" onClick={handleSave} disabled={saving}>
         {saving ? "저장 중..." : "면담 결과 저장"}
       </button>
