@@ -7,6 +7,7 @@ import ScoreSlider from "../../components/ScoreSlider";
 import ReviewPanel from "../../components/ReviewPanel";
 import ObservedComparisonPanel from "../../components/ObservedComparisonPanel";
 import ScoreCaveat from "../../components/ScoreCaveat";
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 // 가치명 기준으로 점수를 평균 낸다. AI 자기서술 채점(responses.scores)과
 // 팀장 관찰(manager_feedback.scores) 양쪽 다 이 함수로 집계해서 같은 방식으로
@@ -53,15 +54,41 @@ function computeMissedWeeks(responses, upToWeek) {
   return missed;
 }
 
+// 저장된 코멘트가 있으면 읽기 전용으로 보여주고 "수정" 버튼을 눌러야 편집 모드로
+// 들어가게 한다 — 예전엔 textarea가 항상 열려 있어서 지금 보이는 게 이미 저장된
+// 값인지 아직 안 저장한 값인지 구분이 안 됐다.
 function HrCommentBox({ responseDocId, initialComment }) {
   const [comment, setComment] = useState(initialComment ?? "");
+  const [editing, setEditing] = useState(!initialComment);
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   async function save() {
     setSaving(true);
     try {
       // firestore.rules: hr는 hr_comment 필드만 수정 가능 (점수는 불변)
       await updateDoc(doc(db, "responses", responseDocId), { hr_comment: comment });
+      setEditing(false);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2500);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function cancel() {
+    setComment(initialComment ?? "");
+    setEditing(false);
+  }
+
+  async function remove() {
+    setConfirmDeleteOpen(false);
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, "responses", responseDocId), { hr_comment: "" });
+      setComment("");
+      setEditing(true);
     } finally {
       setSaving(false);
     }
@@ -69,16 +96,64 @@ function HrCommentBox({ responseDocId, initialComment }) {
 
   return (
     <div style={{ marginTop: 10 }}>
-      <textarea
-        className="textarea"
-        style={{ minHeight: 50 }}
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        placeholder="HR 코멘트 (신입에게는 노출되지 않음)"
+      <div className="label">HR 코멘트 (신입에게는 노출되지 않음)</div>
+      {justSaved && <div className="success">✅ 저장 완료</div>}
+      {editing ? (
+        <>
+          <textarea
+            className="textarea"
+            style={{ minHeight: 50 }}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="코멘트를 입력하세요"
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn" style={{ flex: 1 }} onClick={save} disabled={saving || !comment.trim()}>
+              {saving ? "저장 중..." : "저장"}
+            </button>
+            {initialComment && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ flex: 1 }}
+                onClick={cancel}
+                disabled={saving}
+              >
+                취소
+              </button>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize: 13, marginBottom: 8 }}>{comment}</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ flex: 1 }}
+              onClick={() => setEditing(true)}
+            >
+              수정
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ flex: 1 }}
+              onClick={() => setConfirmDeleteOpen(true)}
+            >
+              삭제
+            </button>
+          </div>
+        </>
+      )}
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        message={"코멘트를 삭제하시겠습니까?"}
+        onConfirm={remove}
+        onCancel={() => setConfirmDeleteOpen(false)}
       />
-      <button className="btn btn-secondary" onClick={save} disabled={saving}>
-        {saving ? "저장 중..." : "코멘트 저장"}
-      </button>
     </div>
   );
 }

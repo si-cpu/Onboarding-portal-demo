@@ -3,6 +3,7 @@ import { doc, getDoc, getDocs, collection, query, where, serverTimestamp, setDoc
 import { auth, db } from "../../lib/firebase";
 import { OBSERVED_VALUES } from "../../lib/coreValues";
 import { MANAGER_CHECKPOINT_WEEKS, getCurrentWeek } from "../../lib/week";
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 const DEFAULT_SCORE = 50;
 
@@ -20,7 +21,10 @@ export default function MetaFeedbackPage() {
   const [checkpointWeek, setCheckpointWeek] = useState(null);
   const [scores, setScores] = useState({}); // { [value]: number } — 관찰 안 한 값은 키 자체가 없음
   const [comment, setComment] = useState("");
+  const [hasExistingEntry, setHasExistingEntry] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [entries, setEntries] = useState([]);
   const [error, setError] = useState(null);
 
@@ -63,15 +67,18 @@ export default function MetaFeedbackPage() {
   // 신입/체크인 주차를 바꾸면 이미 남겨둔 관찰이 있는지 확인해서 불러온다.
   useEffect(() => {
     if (!selectedIntern || !checkpointWeek) return;
+    setJustSaved(false);
     (async () => {
       const docId = `${selectedIntern}_${checkpointWeek}`;
       const snap = await getDoc(doc(db, "manager_feedback", docId));
       if (snap.exists()) {
         setScores(snap.data().scores ?? {});
         setComment(snap.data().comment ?? "");
+        setHasExistingEntry(true);
       } else {
         setScores({});
         setComment("");
+        setHasExistingEntry(false);
       }
     })();
   }, [selectedIntern, checkpointWeek]);
@@ -102,6 +109,41 @@ export default function MetaFeedbackPage() {
         },
         { merge: false } // 관찰 못 한 값을 체크 해제하면 그 키가 사라져야 하므로 병합하지 않고 통째로 덮어씀
       );
+      setHasExistingEntry(true);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2500);
+      await loadEntries();
+    } catch (e) {
+      setError(e.message);
+    }
+    setSaving(false);
+  }
+
+  // 매니저는 firestore.rules상 문서 자체를 delete할 권한이 없다(체크인 슬롯이
+  // internId_checkpointWeek로 고정돼 있어 애초에 삭제 개념보다 "비워서 덮어쓰기"가
+  // 자연스럽다) — scores/comment를 빈 값으로 되돌려 사실상 "이 체크인 지우기"와
+  // 같은 효과를 낸다.
+  async function removeEntry() {
+    if (!selectedIntern || !checkpointWeek) return;
+    setConfirmDeleteOpen(false);
+    setSaving(true);
+    try {
+      const docId = `${selectedIntern}_${checkpointWeek}`;
+      await setDoc(
+        doc(db, "manager_feedback", docId),
+        {
+          managerId: auth.currentUser.uid,
+          internId: selectedIntern,
+          checkpointWeek,
+          scores: {},
+          comment: null,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: false }
+      );
+      setScores({});
+      setComment("");
+      setHasExistingEntry(false);
       await loadEntries();
     } catch (e) {
       setError(e.message);
@@ -162,6 +204,11 @@ export default function MetaFeedbackPage() {
 
             {checkpointWeek && (
               <>
+                {hasExistingEntry && (
+                  <div className="badge" style={{ display: "block", marginBottom: 10 }}>
+                    이미 저장된 체크인 · 수정 중 (저장하면 기존 값을 덮어씁니다)
+                  </div>
+                )}
                 {OBSERVED_VALUES.map((value) => {
                   const observed = value in scores;
                   return (
@@ -196,24 +243,62 @@ export default function MetaFeedbackPage() {
                   onChange={(e) => setComment(e.target.value)}
                   placeholder="(선택) 맥락 코멘트 — 이 신입에게는 절대 노출되지 않습니다."
                 />
-                <button className="btn" onClick={submit} disabled={saving || !selectedIntern}>
-                  {saving ? "저장 중..." : `${checkpointWeek}주차 체크인 저장`}
-                </button>
+                {justSaved && <div className="success">✅ 저장 완료</div>}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn" style={{ flex: 1 }} onClick={submit} disabled={saving || !selectedIntern}>
+                    {saving ? "저장 중..." : hasExistingEntry ? `${checkpointWeek}주차 체크인 수정 저장` : `${checkpointWeek}주차 체크인 저장`}
+                  </button>
+                  {hasExistingEntry && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ flex: 1 }}
+                      onClick={() => setConfirmDeleteOpen(true)}
+                      disabled={saving}
+                    >
+                      삭제
+                    </button>
+                  )}
+                </div>
                 {error && <div className="error">{error}</div>}
               </>
             )}
+
+            <ConfirmDialog
+              open={confirmDeleteOpen}
+              message={"이 체크인 기록을 삭제하시겠습니까?"}
+              onConfirm={removeEntry}
+              onCancel={() => setConfirmDeleteOpen(false)}
+            />
           </>
         )}
       </div>
 
       <div className="card card-wide">
         <div className="label">내가 남긴 관찰</div>
-        {entries.length === 0 && <div className="muted">아직 남긴 관찰이 없습니다.</div>}
+        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+          항목을 클릭하면 위 입력창으로 불러와 수정할 수 있습니다.
+        </div>
+        {/* 삭제(=scores/comment를 비워서 덮어쓰기)된 체크인은 목록에서도 빠져야
+            "삭제됐다"는 게 눈에 보인다 — 문서 자체는 남아 있지만 내용이 없는 빈
+            항목까지 계속 보이면 삭제가 안 된 것처럼 보인다. */}
+        {entries.filter((e) => (e.scores && Object.keys(e.scores).length > 0) || e.comment).length === 0 && (
+          <div className="muted">아직 남긴 관찰이 없습니다.</div>
+        )}
         {entries
+          .filter((e) => (e.scores && Object.keys(e.scores).length > 0) || e.comment)
           .slice()
           .sort((a, b) => (a.checkpointWeek ?? 0) - (b.checkpointWeek ?? 0))
           .map((e) => (
-            <div className="row" key={e.id} style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+            <div
+              className="row"
+              key={e.id}
+              style={{ flexDirection: "column", alignItems: "flex-start", gap: 4, cursor: "pointer" }}
+              onClick={() => {
+                setSelectedIntern(e.internId);
+                setCheckpointWeek(e.checkpointWeek);
+              }}
+            >
               <span>
                 {/* raw uid 대신 이메일로 표시 — interns 목록에 없으면(배정 해제 등) uid로 폴백 */}
                 {interns.find((i) => i.uid === e.internId)?.email ?? e.internId} · {e.checkpointWeek}주차 체크인
