@@ -98,7 +98,10 @@ export default function ResponseDetailPage() {
       try {
         const [userSnap, respSnap] = await Promise.all([
           getDoc(doc(db, "users", internId)),
-          getDocs(query(collection(db, "responses"), where("userId", "==", internId), orderBy("round", "asc"))),
+          // missionId(=주차) 기준 오름차순 — round는 미션당 재제출 횟수라 여러 미션을
+          // 섞으면 실제 주차 순서를 보장하지 못한다(재제출이 없으면 전부 round=1이라
+          // 정렬 기준이 되지 못함).
+          getDocs(query(collection(db, "responses"), where("userId", "==", internId), orderBy("missionId", "asc"))),
         ]);
 
         const joinedAt = userSnap.data()?.joinedAt?.toDate?.() ?? null;
@@ -200,14 +203,23 @@ export default function ResponseDetailPage() {
       )}
 
       {responses.map((r) => (
-        <div className="card card-wide" key={r.id}>
-          <div className="badge">미션 #{r.missionId} · {r.round}번째 제출</div>
-          <div style={{ fontSize: 13, marginBottom: 12, color: "var(--text-dim)" }}>{r.feedback_text}</div>
-          {Object.entries(r.scores ?? {}).map(([label, score]) => (
-            <ScoreSlider key={label} label={label} score={score} />
-          ))}
-          <HrCommentBox responseDocId={r.id} initialComment={r.hr_comment} />
-        </div>
+        <details className="card card-wide" key={r.id}>
+          <summary className="toggle-label">
+            <span className="badge" style={{ marginBottom: 0 }}>
+              {r.missionId}주차 · 미션 #{r.missionId}{r.round > 1 ? ` · ${r.round}번째 제출` : ""}
+            </span>
+          </summary>
+          <div style={{ marginTop: 12 }}>
+            <div className="label">신입 답변</div>
+            <div style={{ fontSize: 13, marginBottom: 12 }}>{r.answerText}</div>
+            <div className="label">AI 피드백</div>
+            <div style={{ fontSize: 13, marginBottom: 12, color: "var(--text-dim)" }}>{r.feedback_text}</div>
+            {Object.entries(r.scores ?? {}).map(([label, score]) => (
+              <ScoreSlider key={label} label={label} score={score} />
+            ))}
+            <HrCommentBox responseDocId={r.id} initialComment={r.hr_comment} />
+          </div>
+        </details>
       ))}
     </div>
   );

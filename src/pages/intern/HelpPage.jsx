@@ -8,6 +8,15 @@ import { useAuth } from "../../hooks/useAuth";
 // 그런 상시 관찰형 필드를 만들면 "나 지금 지켜보고 있다"는 인상을 줘서, 이 프로젝트가
 // 다른 모든 화면에서 지키려는 미션 블라인드·정보 잠금 원칙과 같은 방향으로 가지 않는다.
 // 여긴 순수하게 "물어보고 싶을 때 물어보는" 자발적 채널이다.
+//
+// 톡처럼 보이지만 실시간 양방향 통신(웹소켓 등)은 아니다 — 보낼 때/새로고침할 때만
+// 다시 불러오는 기존 방식 그대로고, 말풍선 UI만 입혔다.
+function formatTime(value) {
+  const date = value?.toDate ? value.toDate() : value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 export default function HelpPage() {
   const { user } = useAuth();
   const [message, setMessage] = useState("");
@@ -16,8 +25,9 @@ export default function HelpPage() {
   const [requests, setRequests] = useState(null);
 
   async function loadRequests() {
+    // 대화창처럼 오래된 메시지가 위, 최신 메시지가 아래로 오도록 오름차순 정렬한다.
     const snap = await getDocs(
-      query(collection(db, "help_requests"), where("userId", "==", user.uid), orderBy("createdAt", "desc"))
+      query(collection(db, "help_requests"), where("userId", "==", user.uid), orderBy("createdAt", "asc"))
     );
     setRequests(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
   }
@@ -55,40 +65,52 @@ export default function HelpPage() {
         </p>
       </div>
 
-      <div className="card">
-        <div className="label">새 메시지</div>
-        <textarea
-          className="textarea"
-          placeholder="예: 이번 주 업무 도구 접근 권한이 필요해요 / 팀 적응이 조금 힘들어요"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-        />
-        <button className="btn" onClick={submit} disabled={submitting || !message.trim()}>
-          {submitting ? "전송 중..." : "인사팀에게 보내기"}
-        </button>
-        {error && <div className="error">{error}</div>}
-      </div>
-
-      {requests === null ? (
-        <div className="muted">불러오는 중...</div>
-      ) : requests.length === 0 ? (
-        <div className="muted">아직 남긴 메시지가 없습니다.</div>
-      ) : (
-        requests.map((r) => (
-          <div key={r.id} className="card">
-            <div className="label">내 메시지</div>
-            <div style={{ fontSize: 13, marginBottom: r.hrReply ? 10 : 0 }}>{r.message}</div>
-            {r.hrReply ? (
-              <>
-                <div className="label" style={{ marginTop: 10 }}>인사팀 답장</div>
-                <div style={{ fontSize: 13, color: "var(--accent)" }}>{r.hrReply}</div>
-              </>
-            ) : (
-              <div className="muted" style={{ marginTop: 10 }}>아직 답장이 없습니다.</div>
-            )}
+      <div className="card card-wide">
+        {requests === null ? (
+          <div className="muted">불러오는 중...</div>
+        ) : requests.length === 0 ? (
+          <div className="muted">아직 남긴 메시지가 없습니다. 아래에 첫 메시지를 남겨보세요.</div>
+        ) : (
+          <div className="chat-thread">
+            {requests.map((r) => (
+              <div key={r.id}>
+                <div className="chat-row mine">
+                  <div>
+                    <div className="chat-bubble mine">{r.message}</div>
+                    <div className="chat-meta" style={{ textAlign: "right" }}>{formatTime(r.createdAt)}</div>
+                  </div>
+                </div>
+                {r.hrReply ? (
+                  <div className="chat-row theirs">
+                    <div>
+                      <div className="chat-bubble theirs">{r.hrReply}</div>
+                      <div className="chat-meta">인사팀 · {formatTime(r.repliedAt)}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="chat-row theirs">
+                    <div className="chat-waiting">인사팀 답장을 기다리는 중...</div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-        ))
-      )}
+        )}
+
+        <div className="chat-composer">
+          <textarea
+            className="textarea"
+            style={{ minHeight: 60 }}
+            placeholder="예: 이번 주 업무 도구 접근 권한이 필요해요 / 팀 적응이 조금 힘들어요"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+          />
+          <button className="btn" onClick={submit} disabled={submitting || !message.trim()}>
+            {submitting ? "전송 중..." : "인사팀에게 보내기"}
+          </button>
+          {error && <div className="error">{error}</div>}
+        </div>
+      </div>
     </div>
   );
 }

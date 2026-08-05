@@ -3,7 +3,15 @@ import ScoreSlider from "./ScoreSlider";
 
 const TITLE = { mid: "3개월차 면담 자료", final: "6개월차 면담 자료" };
 
-export default function ReviewPanel({ reviewType, weakAreas, missedWeeks, narrativeText, initialNotes, onSaveNotes }) {
+export default function ReviewPanel({
+  reviewType,
+  weakAreas,
+  missedWeeks,
+  narrativeText,
+  initialNotes,
+  onSaveNotes,
+  defaultOpen = false,
+}) {
   const [notes, setNotes] = useState(initialNotes ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -17,9 +25,9 @@ export default function ReviewPanel({ reviewType, weakAreas, missedWeeks, narrat
   }
 
   return (
-    <div className="card card-wide">
-      <div className="label">{TITLE[reviewType]}</div>
-
+    <details className="card card-wide" open={defaultOpen}>
+      <summary className="label toggle-label">{TITLE[reviewType]}</summary>
+      <div style={{ marginTop: 12 }}>
       {narrativeText && (
         <div className="locked locked-solid" style={{ marginBottom: 14 }}>
           <div className="muted" style={{ marginBottom: 4 }}>AI 종합 서사 (신입에게 보여준 것과 동일)</div>
@@ -54,6 +62,7 @@ export default function ReviewPanel({ reviewType, weakAreas, missedWeeks, narrat
       <button className="btn" onClick={handleSave} disabled={saving}>
         {saving ? "저장 중..." : "면담 결과 저장"}
       </button>
-    </div>
+      </div>
+    </details>
   );
 }

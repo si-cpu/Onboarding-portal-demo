@@ -342,3 +342,89 @@ a {
   line-height: 1.55;
   color: var(--text-dim);
 }
+
+/* HelpPage/HelpRequestsPage — 신입-HR 소통 채널을 메신저 말풍선처럼 보여준다.
+   실시간 양방향(웹소켓) 통신은 아니고, 제출 후 다시 불러오는 방식 그대로다 — 여긴
+   순전히 보여지는 형태만 대화창처럼 바꾼 것. */
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-row {
+  display: flex;
+}
+
+.chat-row.mine {
+  justify-content: flex-end;
+}
+
+.chat-row.theirs {
+  justify-content: flex-start;
+}
+
+.chat-bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.chat-bubble.mine {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-bottom-right-radius: 4px;
+}
+
+.chat-bubble.theirs {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-meta {
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+
+.chat-waiting {
+  font-size: 12px;
+  color: var(--text-faint);
+  font-style: italic;
+  padding: 2px 4px;
+}
+
+.chat-composer {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* HR 제출내역 상세 — 3개월차/6개월차/주차별 목록을 <details>로 토글 가능하게 한다. */
+summary.toggle-label {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+summary.toggle-label::-webkit-details-marker {
+  display: none;
+}
+
+summary.toggle-label::before {
+  content: "▸";
+  color: var(--accent);
+  font-size: 10px;
+  display: inline-block;
+}
+
+details[open] > summary.toggle-label::before {
+  content: "▾";
+}
